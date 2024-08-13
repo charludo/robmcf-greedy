@@ -6,12 +6,33 @@ use serde::{Deserialize, Serialize};
 fn main() {
     let n = read_from_file("network.json").unwrap();
     println!("Network: {:?}", n);
+
     let (dist, prev) = floyd_warshall(&n.u, &n.c);
-    println!("Distances: {:?}", dist);
-    println!("Predecessors: {:?}", prev);
+    println!("Distances:");
+    pretty_matrix(&dist);
+    println!("Predecessors:");
+    pretty_matrix(&prev);
+
     println!("Shortest path v1 -> v2: {:?}", shortest_path(&prev, 0, 1));
     println!("Shortest path v1 -> v3: {:?}", shortest_path(&prev, 0, 2));
     println!("Shortest path v2 -> v3: {:?}", shortest_path(&prev, 1, 2));
+
+    let arc_sets = intermediate_arc_sets(&dist, &n.u, |x| 2 * x);
+    println!("Intermediate Arc Sets:");
+    for (s, t) in arc_sets.indices_row_major() {
+        println!("A({}, {}) = ", s + 1, t + 1);
+        pretty_matrix(arc_sets.get(s, t).unwrap());
+        println!("");
+    }
+}
+
+fn pretty_matrix<T>(m: &Array2D<T>)
+where
+    T: std::fmt::Debug,
+{
+    m.rows_iter().for_each(|it| {
+        println!("{:?}", it.collect::<Vec<&T>>());
+    })
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -28,6 +49,39 @@ struct Network {
     u: Array2D<usize>,
     c: Array2D<usize>,
     b: Vec<Array2D<usize>>,
+}
+
+fn delta(d: fn(usize) -> usize, dist: &Array2D<usize>, s: usize, t: usize) -> usize {
+    d(*dist.get(s, t).unwrap())
+}
+
+fn intermediate_arc_sets(
+    dist: &Array2D<usize>,
+    u: &Array2D<usize>,
+    d: fn(usize) -> usize,
+) -> Array2D<Array2D<bool>> {
+    let n = dist.num_rows();
+    let mut arc_sets = Array2D::filled_with(Array2D::filled_with(false, n, n), n, n);
+
+    for (s, t) in dist.indices_row_major() {
+        if s == t {
+            continue;
+        }
+        let max_path_length = delta(d, &dist, s, t);
+        let arc_set = arc_sets.get_mut(s, t).unwrap();
+
+        for (x, y) in dist.indices_row_major() {
+            if x == y || y == s || x == t || *u.get(x, y).unwrap() == 0 {
+                continue;
+            }
+            let detour_length =
+                dist.get(s, x).unwrap() + dist.get(x, y).unwrap() + dist.get(y, t).unwrap();
+            if detour_length <= max_path_length {
+                let _ = arc_set.set(x, y, true);
+            }
+        }
+    }
+    arc_sets
 }
 
 fn floyd_warshall(
