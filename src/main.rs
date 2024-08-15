@@ -48,12 +48,93 @@ struct NetworkRaw {
     b: Vec<Vec<Vec<usize>>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Network {
     v: Vec<String>,
     u: Array2D<usize>,
     c: Array2D<usize>,
     b: Vec<Array2D<usize>>,
+    a_fix: Vec<(usize, usize)>,
+}
+
+#[derive(Debug)]
+struct ExtendedNetwork {
+    v: Vec<String>,
+    u: Array2D<usize>,
+    c: Array2D<usize>,
+    b: Vec<Array2D<usize>>,
+    a_fix: Vec<(usize, usize)>,
+    extension_mappings: Vec<(usize, usize)>,
+}
+
+impl From<Network> for ExtendedNetwork {
+    fn from(n: Network) -> Self {
+        let mut n = ExtendedNetwork {
+            v: n.v,
+            u: n.u,
+            c: n.c,
+            b: n.b,
+            a_fix: n.a_fix,
+            extension_mappings: vec![],
+        };
+        for a in n.a_fix.iter() {
+            let k = n.v.len();
+            n.v.push(format!("(v{}={}->{})", k + 1, n.v[a.0], n.v[a.1]));
+
+            n.u = extend_matrix(&n.u, create_extension_vertex(&n.u, a.0, a.1));
+            n.u.set(a.0, a.1, 0).unwrap();
+
+            n.c = extend_matrix(&n.c, create_extension_vertex(&n.c, a.0, a.1));
+            n.c.set(a.0, a.1, 0).unwrap();
+
+            let mut new_b: Vec<Array2D<usize>> = vec![];
+            for b in &n.b {
+                new_b.push(extend_matrix(
+                    &b,
+                    (vec![0; b.row_len()], vec![0; b.column_len() + 1]),
+                ));
+            }
+
+            n.extension_mappings.push((a.0, k + 1));
+        }
+
+        n
+    }
+}
+
+fn create_extension_vertex(
+    matrix: &Array2D<usize>,
+    s: usize,
+    t: usize,
+) -> (Vec<usize>, Vec<usize>) {
+    let mut new_row: Vec<usize> = vec![];
+    for i in 0..matrix.row_len() {
+        if i == t {
+            new_row.push(*matrix.get(s, t).unwrap());
+            continue;
+        }
+        new_row.push(0);
+    }
+
+    let mut new_column = matrix.as_columns()[t].clone();
+    new_column.push(0);
+
+    (new_row, new_column)
+}
+
+fn extend_matrix<T>(matrix: &Array2D<T>, row_col: (Vec<T>, Vec<T>)) -> Array2D<T>
+where
+    T: std::clone::Clone,
+{
+    assert!(matrix.row_len() == row_col.0.len());
+    assert!(matrix.column_len() == row_col.1.len() - 1);
+
+    let mut matrix_unwrapped = matrix.as_rows();
+    matrix_unwrapped.push(row_col.0.clone());
+    for i in 0..row_col.1.len() {
+        matrix_unwrapped[i].push(row_col.1[i].clone());
+    }
+    Array2D::from_rows(&matrix_unwrapped).unwrap()
 }
 
 struct BTuple<'a> {
@@ -80,6 +161,23 @@ impl<'a> std::fmt::Display for BTuple<'a> {
                 .collect::<Vec<(usize, usize)>>(),
         )
     }
+}
+
+fn greedy(
+    mut b_tuples: Vec<BTuple>,
+    n: &Network,
+    dist: &Array2D<usize>,
+    prev: &Array2D<Option<usize>>,
+    a_fix: (usize, usize),
+) -> Vec<Array2D<usize>> {
+    let mut relative_weight = vec![0; n.b.len()];
+    while !b_tuples.is_empty() {
+        b_tuples.iter_mut().for_each(|b_t| {
+            //
+        });
+        b_tuples = b_tuples.into_iter().filter(|b_t| b_t.supply > 0).collect();
+    }
+    vec![]
 }
 
 fn generate_b_tuples<'a>(
@@ -225,9 +323,12 @@ fn read_from_file(filename: &str) -> Result<Network, Box<dyn std::error::Error>>
             .into_iter()
             .map(|b| Array2D::from_rows(&b))
             .collect::<Result<Vec<_>, _>>()?,
+        a_fix: vec![(0, 2)],
     };
 
     validate_network(&network)?;
+
+    println!("{:?}", ExtendedNetwork::from(network.clone()));
 
     Ok(network)
 }
@@ -275,4 +376,22 @@ fn validate_network(n: &Network) -> Result<(), NetworkShapeError> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extend_matrix() {
+        let initial = vec![vec![1, 2], vec![4, 5]];
+        assert_eq!(
+            extend_matrix(
+                &Array2D::from_rows(&initial).unwrap(),
+                (vec![7, 8], vec![3, 6, 9])
+            )
+            .as_rows(),
+            vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]]
+        );
+    }
 }
