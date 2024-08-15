@@ -24,6 +24,11 @@ fn main() {
         pretty_matrix(arc_sets.get(s, t).unwrap());
         println!("");
     }
+
+    let b_tuples = generate_b_tuples((0, 2), &n.b, &arc_sets);
+    for b_t in b_tuples {
+        println!("{}", b_t);
+    }
 }
 
 fn pretty_matrix<T>(m: &Array2D<T>)
@@ -49,6 +54,73 @@ struct Network {
     u: Array2D<usize>,
     c: Array2D<usize>,
     b: Vec<Array2D<usize>>,
+}
+
+struct BTuple<'a> {
+    s: usize,
+    t: usize,
+    supply: usize,
+    lambda: usize,
+    arc_set: &'a Array2D<bool>,
+}
+
+impl<'a> std::fmt::Display for BTuple<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "(s={}, t={}, b(s,t)={}, λ={}, A(s,t)={:?})",
+            self.s + 1,
+            self.t + 1,
+            self.supply,
+            self.lambda,
+            self.arc_set
+                .indices_row_major()
+                .filter(|(s, t)| *self.arc_set.get(*s, *t).unwrap())
+                .map(|(s, t)| (s + 1, t + 1))
+                .collect::<Vec<(usize, usize)>>(),
+        )
+    }
+}
+
+fn generate_b_tuples<'a>(
+    a_fix: (usize, usize),
+    balances: &Vec<Array2D<usize>>,
+    arc_sets: &'a Array2D<Array2D<bool>>,
+) -> Vec<BTuple<'a>> {
+    let mut b_tuples: Vec<BTuple<'a>> = vec![];
+    for (s, t) in arc_sets.indices_row_major().filter(|(s, t)| s != t) {
+        let arc_set = arc_sets.get(s, t).unwrap();
+        if !arc_set.get(a_fix.0, a_fix.1).unwrap() {
+            // println!(
+            //     "arc set for ({}, {}) does not contain ({}, {})",
+            //     s + 1,
+            //     t + 1,
+            //     a_fix.0 + 1,
+            //     a_fix.1 + 1
+            // );
+            continue;
+        }
+        for lambda in 0..balances.len() {
+            let supply = *balances[lambda].get(s, t).unwrap();
+            // println!(
+            //     "{} supplies {} with a supply of {} in scenario {}",
+            //     s + 1,
+            //     t + 1,
+            //     supply,
+            //     lambda
+            // );
+            if supply > 0 {
+                b_tuples.push(BTuple {
+                    s,
+                    t,
+                    supply,
+                    lambda,
+                    arc_set,
+                });
+            }
+        }
+    }
+    b_tuples
 }
 
 fn delta(d: fn(usize) -> usize, dist: &Array2D<usize>, s: usize, t: usize) -> usize {
