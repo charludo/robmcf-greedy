@@ -3,6 +3,9 @@ use std::{fmt, fs::File, io::BufReader};
 use array2d::Array2D;
 use serde::{Deserialize, Serialize};
 
+mod matrix;
+use matrix::Matrix;
+
 fn main() {
     let n = read_from_file("network.json").unwrap();
     println!("Network: {:?}", n);
