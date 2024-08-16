@@ -4,12 +4,34 @@ use std::{
     io::BufReader,
 };
 
+use log::{self, LevelFilter};
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 
 mod matrix;
 use matrix::Matrix;
 
 fn main() {
+    env_logger::builder()
+        .filter(None, LevelFilter::Info)
+        .format(|buf, record| {
+            let style = buf.default_level_style(record.level());
+            writeln!(
+                buf,
+                "[{style}{}{style:#} {}:{}] - {} ",
+                record.level(),
+                match record.file() {
+                    Some(r) => r,
+                    None => "",
+                },
+                match record.line() {
+                    Some(r) => r.to_string(),
+                    None => "".to_string(),
+                },
+                record.args()
+            )
+        })
+        .init();
     let n = read_from_file("network.json").unwrap();
     println!("Network: {:?}", n);
 
