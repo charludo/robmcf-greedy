@@ -32,6 +32,9 @@ fn main() {
     for b_t in b_tuples.0 {
         println!("{}", b_t);
     }
+
+    let m: Matrix<usize> = Matrix::from_rows(&vec![vec![]]);
+    println!("{}", m);
 }
 
 fn pretty_matrix<T>(m: &Array2D<T>)
