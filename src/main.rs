@@ -26,7 +26,7 @@ fn main() {
     }
 
     let b_tuples = generate_b_tuples((0, 2), &n.b, &arc_sets);
-    for b_t in b_tuples {
+    for b_t in b_tuples.0 {
         println!("{}", b_t);
     }
 }
@@ -70,15 +70,16 @@ struct ExtendedNetwork {
 
 impl From<Network> for ExtendedNetwork {
     fn from(n: Network) -> Self {
+        let a_fix = n.a_fix;
         let mut n = ExtendedNetwork {
             v: n.v,
             u: n.u,
             c: n.c,
             b: n.b,
-            a_fix: n.a_fix,
+            a_fix: vec![],
             extension_mappings: vec![],
         };
-        for a in n.a_fix.iter() {
+        for a in a_fix.iter() {
             let k = n.v.len();
             n.v.push(format!("(v{}={}->{})", k + 1, n.v[a.0], n.v[a.1]));
 
@@ -96,7 +97,8 @@ impl From<Network> for ExtendedNetwork {
                 ));
             }
 
-            n.extension_mappings.push((a.0, k + 1));
+            n.a_fix.push((k + 1, a.1));
+            n.extension_mappings.push((k + 1, a.0));
         }
 
         n
@@ -138,6 +140,7 @@ where
     Array2D::from_rows(&matrix_unwrapped).unwrap()
 }
 
+#[derive(Clone)]
 struct BTuple<'a> {
     s: usize,
     t: usize,
@@ -164,29 +167,102 @@ impl<'a> std::fmt::Display for BTuple<'a> {
     }
 }
 
-fn greedy(
-    mut b_tuples: Vec<BTuple>,
+fn greedy<'a>(
+    mut b_tuples: Vec<BTuple<'a>>,
+    mut waiting_at_a_fix: Vec<Vec<BTuple<'a>>>,
     n: &Network,
     dist: &Array2D<usize>,
     prev: &Array2D<Option<usize>>,
     a_fix: (usize, usize),
 ) -> Vec<Array2D<usize>> {
-    let mut relative_weight = vec![0; n.b.len()];
+    let mut relative_attraction = vec![0; n.b.len()];
+    let a_fix_cost = dist.get(a_fix.0, a_fix.1).unwrap();
     while !b_tuples.is_empty() {
+        let mut b_tuples_new: Vec<BTuple> = vec![];
+        b_tuples.extend(get_consistent_flow_tuples(&mut waiting_at_a_fix));
         b_tuples.iter_mut().for_each(|b_t| {
-            //
+            let path_cost_direct = *dist.get(b_t.s, b_t.t).unwrap();
+            let path_cost_via_a_fix =
+                dist.get(b_t.s, a_fix.0).unwrap() + a_fix_cost + dist.get(a_fix.1, b_t.t).unwrap();
+            let next_vertex =
+                if path_cost_direct < path_cost_via_a_fix - relative_attraction[b_t.lambda] {
+                    shortest_path(prev, b_t.s, b_t.t)[1]
+                } else {
+                    shortest_path(prev, b_t.s, a_fix.1)[1]
+                };
+
+            if next_vertex == b_t.t {
+                b_t.supply = 0;
+            }
+
+            let mut b_t_new = b_t.clone();
+            b_t_new.s = next_vertex;
+
+            if next_vertex == a_fix.0 {
+                waiting_at_a_fix[b_t.lambda].push(b_t_new);
+            } else {
+                b_tuples_new.push(b_t_new);
+            }
+            b_t.supply = 0;
         });
-        b_tuples = b_tuples.into_iter().filter(|b_t| b_t.supply > 0).collect();
+        b_tuples.extend(b_tuples_new);
+        waiting_at_a_fix.iter_mut().for_each(|a_fix_b_tuples| {
+            a_fix_b_tuples.retain(|b_t| b_t.supply > 0);
+        });
+        let mut scenario_supplies: Vec<usize> = vec![0; n.b.len()];
+        b_tuples = b_tuples
+            .into_iter()
+            .filter(|b_t| b_t.supply > 0)
+            .inspect(|b_t| {
+                if b_t.s == a_fix.0 {
+                    scenario_supplies[b_t.lambda] += b_t.supply
+                }
+            })
+            .collect();
+
+        let total_supply: usize = scenario_supplies.iter().sum();
+        relative_attraction
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, attr)| {
+                *attr = total_supply - scenario_supplies[i];
+            });
     }
     vec![]
+}
+
+fn get_consistent_flow_tuples<'a>(waiting_at_a_fix: &mut Vec<Vec<BTuple<'a>>>) -> Vec<BTuple<'a>> {
+    let max_consistent_flow = waiting_at_a_fix
+        .iter()
+        .map(|b_tuples| b_tuples.iter().map(|b_t| b_t.supply).sum::<usize>())
+        .min()
+        .unwrap();
+    let mut ready_to_send: Vec<BTuple> = vec![];
+    waiting_at_a_fix.iter_mut().for_each(|b_tuples| {
+        let mut remaining_flow = max_consistent_flow;
+        b_tuples.iter_mut().for_each(|b_t| {
+            let flow_to_send = if b_t.supply < remaining_flow {
+                b_t.supply
+            } else {
+                remaining_flow
+            };
+            remaining_flow -= flow_to_send;
+            let mut b_t_new = b_t.clone();
+            b_t_new.supply = flow_to_send;
+            b_t.supply -= flow_to_send;
+            ready_to_send.push(b_t_new);
+        });
+    });
+    ready_to_send
 }
 
 fn generate_b_tuples<'a>(
     a_fix: (usize, usize),
     balances: &Vec<Array2D<usize>>,
     arc_sets: &'a Array2D<Array2D<bool>>,
-) -> Vec<BTuple<'a>> {
+) -> (Vec<BTuple<'a>>, Vec<Vec<BTuple<'a>>>) {
     let mut b_tuples: Vec<BTuple<'a>> = vec![];
+    let mut b_tuples_at_a_fix: Vec<Vec<BTuple<'a>>> = vec![vec![]; balances.len()];
     for (s, t) in arc_sets.indices_row_major().filter(|(s, t)| s != t) {
         let arc_set = arc_sets.get(s, t).unwrap();
         if !arc_set.get(a_fix.0, a_fix.1).unwrap() {
@@ -209,17 +285,22 @@ fn generate_b_tuples<'a>(
             //     lambda
             // );
             if supply > 0 {
-                b_tuples.push(BTuple {
+                let b_t = BTuple {
                     s,
                     t,
                     supply,
                     lambda,
                     arc_set,
-                });
+                };
+                if s == a_fix.0 {
+                    b_tuples_at_a_fix[lambda].push(b_t);
+                } else {
+                    b_tuples.push(b_t);
+                }
             }
         }
     }
-    b_tuples
+    (b_tuples, b_tuples_at_a_fix)
 }
 
 fn delta(d: fn(usize) -> usize, dist: &Array2D<usize>, s: usize, t: usize) -> usize {
