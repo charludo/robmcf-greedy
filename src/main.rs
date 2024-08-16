@@ -1,15 +1,12 @@
-use std::{
-    fmt::{self, Display},
-    fs::File,
-    io::BufReader,
-};
+use std::fmt;
 
 use log::{self, LevelFilter};
-use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 mod matrix;
+mod network;
 use matrix::Matrix;
+use network::*;
 
 fn main() {
     env_logger::builder()
@@ -32,7 +29,7 @@ fn main() {
             )
         })
         .init();
-    let n = read_from_file("network.json").unwrap();
+    let n = Network::from_file("network.json");
     println!("Network: {:?}", n);
 
     let (dist, prev) = floyd_warshall(&n.u, &n.c);
@@ -60,102 +57,6 @@ fn main() {
 
     let m: Matrix<usize> = Matrix::from_rows(&vec![vec![]]);
     println!("{}", m);
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct NetworkRaw {
-    v: Vec<String>,
-    u: Vec<Vec<usize>>,
-    c: Vec<Vec<usize>>,
-    b: Vec<Vec<Vec<usize>>>,
-    a_fix: Vec<(usize, usize)>,
-}
-
-#[derive(Clone, Debug)]
-struct Network {
-    v: Vec<String>,
-    u: Matrix<usize>,
-    c: Matrix<usize>,
-    b: Vec<Matrix<usize>>,
-    a_fix: Vec<(usize, usize)>,
-}
-
-#[derive(Debug)]
-struct ExtendedNetwork {
-    v: Vec<String>,
-    u: Matrix<usize>,
-    c: Matrix<usize>,
-    b: Vec<Matrix<usize>>,
-    a_fix: Vec<(usize, usize)>,
-    extension_mappings: Vec<(usize, usize)>,
-}
-
-impl From<Network> for ExtendedNetwork {
-    fn from(n: Network) -> Self {
-        let a_fix = n.a_fix;
-        let mut n = ExtendedNetwork {
-            v: n.v,
-            u: n.u,
-            c: n.c,
-            b: n.b,
-            a_fix: vec![],
-            extension_mappings: vec![],
-        };
-        for a in a_fix.iter() {
-            let k = n.v.len();
-            n.v.push(format!("(v{}={}->{})", k + 1, n.v[a.0], n.v[a.1]));
-
-            n.u = extend_matrix(&n.u, create_extension_vertex(&n.u, a.0, a.1));
-            n.u.set(a.0, a.1, 0);
-
-            n.c = extend_matrix(&n.c, create_extension_vertex(&n.c, a.0, a.1));
-            n.c.set(a.0, a.1, 0);
-
-            let mut new_b: Vec<Matrix<usize>> = vec![];
-            for b in &n.b {
-                new_b.push(extend_matrix(
-                    &b,
-                    (vec![0; b.row_len()], vec![0; b.column_len() + 1]),
-                ));
-            }
-
-            n.a_fix.push((k + 1, a.1));
-            n.extension_mappings.push((k + 1, a.0));
-        }
-
-        n
-    }
-}
-
-fn create_extension_vertex(matrix: &Matrix<usize>, s: usize, t: usize) -> (Vec<usize>, Vec<usize>) {
-    let mut new_row: Vec<usize> = vec![];
-    for i in 0..matrix.row_len() {
-        if i == t {
-            new_row.push(*matrix.get(s, t));
-            continue;
-        }
-        new_row.push(0);
-    }
-
-    let mut new_column = matrix.as_columns()[t].clone();
-    new_column.push(0);
-
-    (new_row, new_column)
-}
-
-fn extend_matrix<T>(matrix: &Matrix<T>, row_col: (Vec<T>, Vec<T>)) -> Matrix<T>
-where
-    T: std::clone::Clone + Display + Copy,
-{
-    assert!(matrix.row_len() == row_col.0.len());
-    assert!(matrix.column_len() == row_col.1.len() - 1);
-
-    let mut matrix_unwrapped = matrix.as_rows();
-    matrix_unwrapped.push(row_col.0.clone());
-    for i in 0..row_col.1.len() {
-        matrix_unwrapped[i].push(row_col.1[i].clone());
-    }
-    Matrix::<T>::from_rows(&matrix_unwrapped)
 }
 
 #[derive(Clone)]
@@ -353,38 +254,6 @@ fn intermediate_arc_sets(
     arc_sets
 }
 
-fn floyd_warshall(u: &Matrix<usize>, c: &Matrix<usize>) -> (Matrix<usize>, Matrix<Option<usize>>) {
-    let mut dist: Matrix<usize> = Matrix::filled_with(usize::MAX, c.num_rows(), c.num_columns());
-    let mut prev: Matrix<Option<usize>> = Matrix::filled_with(None, c.num_rows(), c.num_columns());
-
-    for (x, y) in u.indices().filter(|(x, y)| *u.get(*x, *y) > 0) {
-        // println!("dist {} -> {} is {}", x+1, y+1, c.get(x, y));
-        let _ = dist.set(x, y, *c.get(x, y));
-        let _ = prev.set(x, y, Some(x));
-    }
-    for v in 0..u.num_rows() {
-        // println!("pred. of {} is {} with distance 0", v+1, v+1);
-        let _ = dist.set(v, v, 0);
-        let _ = prev.set(v, v, Some(v));
-    }
-    for k in 0..u.num_rows() {
-        for i in 0..u.num_rows() {
-            for j in 0..u.num_rows() {
-                if *dist.get(i, k) < usize::MAX
-                    && *dist.get(k, j) < usize::MAX
-                    && *dist.get(i, j) > dist.get(i, k) + dist.get(k, j)
-                {
-                    // println!("new dist {} -> {} is {}", i+1, j+1, dist.get(i, k).unwrap() + dist.get(k, j).unwrap());
-                    let _ = dist.set(i, j, dist.get(i, k) + dist.get(k, j));
-                    let _ = prev.set(i, j, *prev.get(k, j));
-                }
-            }
-        }
-    }
-
-    (dist, prev)
-}
-
 fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Vec<usize> {
     let mut p = match prev.get(s, t) {
         Some(_) => vec![t],
@@ -398,29 +267,6 @@ fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Vec<us
 
     p.reverse();
     p
-}
-
-fn read_from_file(filename: &str) -> Result<Network, Box<dyn std::error::Error>> {
-    let file = File::open(filename)?;
-    let reader = BufReader::new(file);
-
-    let network_raw: NetworkRaw = serde_json::from_reader(reader)?;
-
-    let network = Network {
-        v: network_raw.v,
-        u: Matrix::from_rows(&network_raw.u),
-        c: Matrix::from_rows(&network_raw.c),
-        b: network_raw
-            .b
-            .into_iter()
-            .map(|b| Matrix::from_rows(&b))
-            .collect::<Vec<_>>(),
-        a_fix: network_raw.a_fix,
-    };
-
-    validate_network(&network)?;
-
-    Ok(network)
 }
 
 #[derive(Debug)]
@@ -447,25 +293,6 @@ impl From<&str> for NetworkShapeError {
     fn from(msg: &str) -> Self {
         NetworkShapeError::new(msg)
     }
-}
-
-fn validate_network(n: &Network) -> Result<(), NetworkShapeError> {
-    let len = n.v.len();
-
-    let matrices = [&n.u, &n.c];
-    for matrix in matrices {
-        if matrix.num_rows() != len || matrix.num_columns() != len {
-            return Err("Matrices u, c have differing dimensions or are not quadratic")?;
-        }
-    }
-
-    for matrix in &n.b {
-        if matrix.num_rows() != len || matrix.num_columns() != len {
-            return Err("Matrices in b have differing dimensions or are not quadratic")?;
-        }
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]

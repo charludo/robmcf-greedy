@@ -1,8 +1,9 @@
 use core::fmt::Display;
 use core::panic;
-use std::fmt::Debug;
+use std::fmt::{Debug, Result};
 
 use array2d::Array2D;
+use serde::{de::Visitor, Deserialize, Deserializer};
 
 #[derive(Debug, Clone)]
 pub struct Matrix<T>(Array2D<T>);
@@ -124,7 +125,7 @@ impl<T> Matrix<T> {
 }
 
 impl Display for Matrix<String> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let lpad = match self.elements().map(|x| x.to_string().len()).max() {
             Some(element) => element,
             None => return write!(f, "[[]]"),
@@ -157,7 +158,7 @@ impl Display for Matrix<String> {
 }
 
 impl Display for Matrix<usize> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let str_repr = Matrix::from_elements(
             &self.elements().map(|x| x.to_string()).collect(),
             self.num_rows(),
@@ -168,7 +169,7 @@ impl Display for Matrix<usize> {
 }
 
 impl Display for Matrix<bool> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let str_repr = Matrix::from_elements(
             &self.elements().map(|x| (*x as usize).to_string()).collect(),
             self.num_rows(),
@@ -182,7 +183,7 @@ impl<T> Display for Matrix<Option<T>>
 where
     T: ToString,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let str_repr = Matrix::from_elements(
             &self
                 .elements()
@@ -195,5 +196,44 @@ where
             self.num_columns(),
         );
         write!(f, "{}", str_repr)
+    }
+}
+
+struct MatrixVisitor<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+impl<'de, T> Visitor<'de> for MatrixVisitor<T>
+where
+    T: Deserialize<'de> + Clone,
+{
+    type Value = Matrix<T>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("could not deserialize Matrix")
+    }
+
+    fn visit_seq<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let mut matrix: Vec<Vec<T>> = vec![];
+        while let Some(element) = map.next_element::<Vec<T>>()? {
+            matrix.push(element);
+        }
+        Ok(Matrix::from_rows(&matrix))
+    }
+}
+
+impl<'de, T> Deserialize<'de> for Matrix<T>
+where
+    T: Deserialize<'de> + Clone,
+{
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_seq(MatrixVisitor {
+            _phantom: std::marker::PhantomData,
+        })
     }
 }
