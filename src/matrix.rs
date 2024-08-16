@@ -1,14 +1,13 @@
 use core::fmt::Display;
 use core::panic;
+use std::fmt::Debug;
 
 use array2d::Array2D;
 
+#[derive(Debug, Clone)]
 pub struct Matrix<T>(Array2D<T>);
 
-impl<T> Matrix<T>
-where
-    T: Copy + Display,
-{
+impl<T> Matrix<T> {
     pub fn get(&self, row: usize, column: usize) -> &T {
         match self.0.get(row, column) {
             Some(element) => element,
@@ -34,20 +33,20 @@ where
         }
     }
 
-    pub fn set(mut self, row: usize, column: usize, value: T) {
+    pub fn set(&mut self, row: usize, column: usize, value: T) {
         match self.0.set(row, column, value) {
             Ok(_) => (),
             Err(msg) => panic!(
-                "Attempted to set matrix element ({}, {}) to value {}, but encountered following error: {}",
-                row,
-                column,
-                value,
-                msg,
+                "Attempted to set matrix element ({}, {}), but encountered following error: {}",
+                row, column, msg,
             ),
         }
     }
 
-    pub fn from_rows(rows: &Vec<Vec<T>>) -> Self {
+    pub fn from_rows(rows: &Vec<Vec<T>>) -> Self
+    where
+        T: Clone,
+    {
         match Array2D::from_rows(rows) {
             Ok(matrix) => Matrix(matrix),
             Err(msg) => panic!(
@@ -57,11 +56,37 @@ where
         }
     }
 
-    pub fn as_rows(&self) -> Vec<Vec<T>> {
+    pub fn filled_with(value: T, rows: usize, columns: usize) -> Self
+    where
+        T: Clone,
+    {
+        Matrix(Array2D::filled_with(value, rows, columns))
+    }
+
+    pub fn from_elements(elements: &Vec<T>, rows: usize, columns: usize) -> Self
+    where
+        T: Clone,
+    {
+        match Array2D::from_row_major(elements, rows, columns) {
+            Ok(matrix) => Matrix(matrix),
+            Err(msg) => panic!(
+                "An error occurred while attempting to create a ({}, {}) matrix from a row: {}",
+                rows, columns, msg
+            ),
+        }
+    }
+
+    pub fn as_rows(&self) -> Vec<Vec<T>>
+    where
+        T: Clone,
+    {
         self.0.as_rows()
     }
 
-    pub fn as_columns(&self) -> Vec<Vec<T>> {
+    pub fn as_columns(&self) -> Vec<Vec<T>>
+    where
+        T: Clone,
+    {
         self.0.as_columns()
     }
 
@@ -80,12 +105,25 @@ where
            + Clone {
         self.0.rows_iter()
     }
+
+    pub fn row_len(&self) -> usize {
+        self.0.row_len()
+    }
+
+    pub fn column_len(&self) -> usize {
+        self.0.row_len()
+    }
+
+    pub fn num_rows(&self) -> usize {
+        self.0.num_rows()
+    }
+
+    pub fn num_columns(&self) -> usize {
+        self.0.num_columns()
+    }
 }
 
-impl<T> Display for Matrix<T>
-where
-    T: Copy + Display + Ord,
-{
+impl Display for Matrix<String> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let lpad = match self.elements().map(|x| x.to_string().len()).max() {
             Some(element) => element,
@@ -115,5 +153,47 @@ where
             }
         });
         write!(f, "{}", string_repr.join(""))
+    }
+}
+
+impl Display for Matrix<usize> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str_repr = Matrix::from_elements(
+            &self.elements().map(|x| x.to_string()).collect(),
+            self.num_rows(),
+            self.num_columns(),
+        );
+        write!(f, "{}", str_repr)
+    }
+}
+
+impl Display for Matrix<bool> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str_repr = Matrix::from_elements(
+            &self.elements().map(|x| (*x as usize).to_string()).collect(),
+            self.num_rows(),
+            self.num_columns(),
+        );
+        write!(f, "{}", str_repr)
+    }
+}
+
+impl<T> Display for Matrix<Option<T>>
+where
+    T: ToString,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str_repr = Matrix::from_elements(
+            &self
+                .elements()
+                .map(|x| match x {
+                    Some(e) => e.to_string(),
+                    None => "?".to_string(),
+                })
+                .collect(),
+            self.num_rows(),
+            self.num_columns(),
+        );
+        write!(f, "{}", str_repr)
     }
 }
