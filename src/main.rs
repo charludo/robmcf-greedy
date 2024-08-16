@@ -46,6 +46,7 @@ struct NetworkRaw {
     u: Vec<Vec<usize>>,
     c: Vec<Vec<usize>>,
     b: Vec<Vec<Vec<usize>>>,
+    a_fix: Vec<(usize, usize)>,
 }
 
 #[derive(Clone, Debug)]
@@ -323,12 +324,10 @@ fn read_from_file(filename: &str) -> Result<Network, Box<dyn std::error::Error>>
             .into_iter()
             .map(|b| Array2D::from_rows(&b))
             .collect::<Result<Vec<_>, _>>()?,
-        a_fix: vec![(0, 2)],
+        a_fix: network_raw.a_fix,
     };
 
     validate_network(&network)?;
-
-    println!("{:?}", ExtendedNetwork::from(network.clone()));
 
     Ok(network)
 }
