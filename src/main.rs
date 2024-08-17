@@ -38,6 +38,10 @@ fn main() {
     println!("Predecessors:");
     println!("{}", &prev);
 
+    let succ = invert_predecessors(&prev);
+    println!("Successors:");
+    println!("{}", &succ);
+
     println!("Shortest path v1 -> v2: {:?}", shortest_path(&prev, 0, 1));
     println!("Shortest path v1 -> v3: {:?}", shortest_path(&prev, 0, 2));
     println!("Shortest path v2 -> v3: {:?}", shortest_path(&prev, 1, 2));
@@ -185,24 +189,24 @@ fn generate_b_tuples<'a>(
     for (s, t) in arc_sets.indices().filter(|(s, t)| s != t) {
         let arc_set = arc_sets.get(s, t);
         if !arc_set.get(a_fix.0, a_fix.1) {
-            // println!(
-            //     "arc set for ({}, {}) does not contain ({}, {})",
-            //     s + 1,
-            //     t + 1,
-            //     a_fix.0 + 1,
-            //     a_fix.1 + 1
-            // );
+            log::debug!(
+                "arc set for ({}, {}) does not contain ({}, {})",
+                s + 1,
+                t + 1,
+                a_fix.0 + 1,
+                a_fix.1 + 1
+            );
             continue;
         }
         for lambda in 0..balances.len() {
             let supply = *balances[lambda].get(s, t);
-            // println!(
-            //     "{} supplies {} with a supply of {} in scenario {}",
-            //     s + 1,
-            //     t + 1,
-            //     supply,
-            //     lambda
-            // );
+            log::debug!(
+                "{} supplies {} with a supply of {} in scenario {}",
+                s + 1,
+                t + 1,
+                supply,
+                lambda
+            );
             if supply > 0 {
                 let b_t = BTuple {
                     s,
