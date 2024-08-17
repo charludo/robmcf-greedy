@@ -77,6 +77,24 @@ impl<T> Matrix<T> {
         }
     }
 
+    pub fn apply_mask(&self, mask: Matrix<bool>, bottom: T) -> Self
+    where
+        T: Clone,
+    {
+        assert!(self.num_rows() == mask.num_rows());
+        assert!(self.num_columns() == mask.num_columns());
+
+        Matrix::from_elements(
+            &self
+                .elements()
+                .zip(mask.elements())
+                .map(|(x, m)| if *m { x.clone() } else { bottom.clone() })
+                .collect(),
+            self.num_rows(),
+            self.num_columns(),
+        )
+    }
+
     pub fn as_rows(&self) -> Vec<Vec<T>>
     where
         T: Clone,
