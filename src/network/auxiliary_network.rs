@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
@@ -22,13 +22,18 @@ pub(super) struct AuxiliaryNetwork {
 }
 
 impl AuxiliaryNetwork {
-    fn max_consistent_flows(&self) -> Vec<usize> {
-        let mut max_flow_values: Vec<usize> = vec![usize::MAX; self.fixed_arcs.len()];
-        self.scenarios.iter().for_each(|scenario| {
-            max_flow_values
-                .iter_mut()
-                .enumerate()
-                .for_each(|(i, f_v)| *f_v = std::cmp::max(*f_v, scenario.b_tuples_fixed[i].len()));
+    fn max_consistent_flows(&self) -> HashMap<(usize, usize), usize> {
+        let mut max_flow_values: HashMap<(usize, usize), usize> = HashMap::new();
+        self.fixed_arcs.iter().for_each(|fixed_arc| {
+            self.scenarios.iter().for_each(|scenario| {
+                let _ = max_flow_values.insert(
+                    *fixed_arc,
+                    *std::cmp::max(
+                        max_flow_values.get(fixed_arc).unwrap_or(&0),
+                        &scenario.waiting_at(*fixed_arc),
+                    ),
+                );
+            });
         });
         max_flow_values
     }
@@ -109,13 +114,15 @@ impl From<&Network> for AuxiliaryNetwork {
         balances.iter().for_each(|balance| {
             let (b_tuples_free, b_tuples_fixed) =
                 generate_b_tuples(&balance, &arc_sets, &fixed_arcs);
-            scenarios.push(Box::new(Scenario {
+            let scenario = Scenario {
                 capacities: capacities.clone(),
                 distance_map: distance_map.clone(),
                 successor_map: successor_map.clone(),
                 b_tuples_free,
                 b_tuples_fixed,
-            }));
+            };
+            log::debug!("Generated the following scenario:\n{}", scenario);
+            scenarios.push(Box::new(scenario));
         });
 
         AuxiliaryNetwork {

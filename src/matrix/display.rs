@@ -39,7 +39,16 @@ impl Display for Matrix<String> {
 impl Display for Matrix<usize> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let str_repr = Matrix::from_elements(
-            &self.elements().map(|x| x.to_string()).collect(),
+            &self
+                .elements()
+                .map(|x| {
+                    if *x == usize::MAX {
+                        "?".to_string()
+                    } else {
+                        x.to_string()
+                    }
+                })
+                .collect(),
             self.num_rows(),
             self.num_columns(),
         );

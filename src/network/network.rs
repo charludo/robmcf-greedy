@@ -1,7 +1,7 @@
 use crate::matrix::Matrix;
 use serde::Deserialize;
 use serde_json;
-use std::{fs::File, io::BufReader};
+use std::{fmt::Display, fs::File, io::BufReader};
 
 use super::auxiliary_network::AuxiliaryNetwork;
 
@@ -62,5 +62,39 @@ impl Network {
             Some(_) => {}
             None => self.auxiliary_network = Some(Box::new(AuxiliaryNetwork::from(&*self))),
         }
+    }
+}
+
+impl Display for Network {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut string_repr: Vec<String> = vec![];
+        string_repr.push("Network:".to_string());
+        string_repr.push("========".to_string());
+        string_repr.push(format!("Vertices: ({})", self.vertices.join(", ")));
+        string_repr.push(format!("Capacities:\n{:>8}", self.capacities));
+        string_repr.push(format!("Costs:\n{:>8}", self.costs));
+        string_repr.push(format!("{} Scenarios:", self.balances.len()));
+        self.balances.iter().enumerate().for_each(|(i, b)| {
+            string_repr.push(format!("{}.:\n{:>8}", i + 1, b));
+        });
+        string_repr.push(format!("The following arcs have been marked as fixed:"));
+        string_repr.push(format!(
+            "{:>8}",
+            self.fixed_arcs
+                .iter()
+                .map(|(s, t)| format!("({}->{})", self.vertices[*s], self.vertices[*t]))
+                .collect::<Vec<String>>()
+                .join(", ")
+        ));
+        match &self.arc_loads {
+            Some(loads) => {
+                string_repr.push("The following arc loads constitute the solution:".to_string());
+                loads.iter().enumerate().for_each(|(i, load)| {
+                    string_repr.push(format!("Scenario {}:\n{:>8}", i + 1, load));
+                });
+            }
+            None => string_repr.push("Solution has not been calculated.".to_string()),
+        };
+        write!(f, "{}", string_repr.join("\n"))
     }
 }

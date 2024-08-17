@@ -1,2 +1,2 @@
 mod floyd_warshall;
-pub use floyd_warshall::*;
+pub(crate) use floyd_warshall::*;

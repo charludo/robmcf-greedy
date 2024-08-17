@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::matrix::Matrix;
 
@@ -8,25 +8,35 @@ pub(super) fn generate_b_tuples(
     balances: &Matrix<usize>,
     intermediate_arc_sets: &Matrix<Arc<Matrix<bool>>>,
     fixed_arcs: &Vec<(usize, usize)>,
-) -> (Vec<Box<BTuple>>, Vec<Vec<Box<BTuple>>>) {
+) -> (Vec<Box<BTuple>>, HashMap<(usize, usize), Vec<Box<BTuple>>>) {
     let mut free: Vec<Box<BTuple>> = vec![];
-    let mut fixed: Vec<Vec<Box<BTuple>>> = vec![vec![]; fixed_arcs.len()];
+    let mut fixed: HashMap<(usize, usize), Vec<Box<BTuple>>> = HashMap::new();
     balances
         .indices()
         .filter(|(s, t)| s != t && *balances.get(*s, *t) > 0)
         .for_each(|(s, t)| {
-            let target = match fixed_arcs.iter().position(|&(a, _)| a == s) {
-                Some(i) => &mut fixed[i],
-                None => &mut free,
-            };
+            let b_tuple = Box::new(BTuple {
+                s,
+                t,
+                intermediate_arc_set: Arc::clone(intermediate_arc_sets.get(s, t)),
+            });
+
+            log::debug!(
+                "Generated {} BTuples for {} -> {}:\n{}",
+                *balances.get(s, t),
+                s,
+                t,
+                b_tuple
+            );
+
             // we are working with single units of supply i order to prevent dead ends
-            for _ in 0..*balances.get(s, t) {
-                target.push(Box::new(BTuple {
-                    s,
-                    t,
-                    intermediate_arc_set: Arc::clone(intermediate_arc_sets.get(s, t)),
-                }));
-            }
+            let supply_at_s_t = vec![b_tuple; *balances.get(s, t)];
+            match fixed_arcs.iter().position(|&(a, _)| a == s) {
+                Some(_) => {
+                    let _ = fixed.insert((s, t), supply_at_s_t);
+                }
+                None => free.extend(supply_at_s_t),
+            };
         });
 
     (free, fixed)

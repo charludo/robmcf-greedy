@@ -8,5 +8,6 @@ use util::setup_logger;
 fn main() {
     setup_logger();
 
-    let _n = Network::from_file("network.json");
+    let n = Network::from_file("network.json");
+    println!("{}", n);
 }
