@@ -4,4 +4,4 @@ mod network;
 mod preprocessing;
 mod scenario;
 
-pub use network::*;
+pub(crate) use network::*;

@@ -1,6 +1,6 @@
 use crate::matrix::Matrix;
 
-pub fn floyd_warshall(
+pub(crate) fn floyd_warshall(
     capacities: &Matrix<usize>,
     costs: &Matrix<usize>,
 ) -> (Matrix<usize>, Matrix<Option<usize>>) {
@@ -51,22 +51,7 @@ pub fn floyd_warshall(
     (dist, prev)
 }
 
-pub fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Vec<usize> {
-    let mut p = match prev.get(s, t) {
-        Some(_) => vec![t],
-        None => return vec![],
-    };
-
-    while s != t {
-        t = prev.get(s, t).expect("");
-        p.push(t);
-    }
-
-    p.reverse();
-    p
-}
-
-pub fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Matrix<usize> {
+pub(crate) fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Matrix<usize> {
     let mut succ: Matrix<usize> =
         Matrix::filled_with(usize::MAX, prev.num_rows(), prev.num_columns());
 
@@ -88,4 +73,19 @@ pub fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Matrix<usize> {
     );
 
     succ
+}
+
+fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Vec<usize> {
+    let mut p = match prev.get(s, t) {
+        Some(_) => vec![t],
+        None => return vec![],
+    };
+
+    while s != t {
+        t = prev.get(s, t).expect("");
+        p.push(t);
+    }
+
+    p.reverse();
+    p
 }
