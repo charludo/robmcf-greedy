@@ -1,12 +1,10 @@
-use core::fmt::Display;
 use core::panic;
-use std::fmt::{Debug, Result};
+use std::fmt::Debug;
 
 use array2d::Array2D;
-use serde::{de::Visitor, Deserialize, Deserializer};
 
 #[derive(Debug, Clone)]
-pub struct Matrix<T>(Array2D<T>);
+pub struct Matrix<T>(pub(super) Array2D<T>);
 
 impl<T> Matrix<T> {
     pub fn get(&self, row: usize, column: usize) -> &T {
@@ -95,6 +93,21 @@ impl<T> Matrix<T> {
         )
     }
 
+    pub fn extend(&mut self, row: Vec<T>, col: Vec<T>)
+    where
+        T: std::clone::Clone + Copy,
+    {
+        assert!(self.row_len() == row.len());
+        assert!(self.column_len() == col.len() - 1);
+
+        let mut matrix_unwrapped = self.as_rows();
+        matrix_unwrapped.push(row.clone());
+        for i in 0..col.len() {
+            matrix_unwrapped[i].push(col[i].clone());
+        }
+        let _ = std::mem::replace(self, Matrix::<T>::from_rows(&matrix_unwrapped));
+    }
+
     pub fn as_rows(&self) -> Vec<Vec<T>>
     where
         T: Clone,
@@ -139,119 +152,5 @@ impl<T> Matrix<T> {
 
     pub fn num_columns(&self) -> usize {
         self.0.num_columns()
-    }
-}
-
-impl Display for Matrix<String> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
-        let lpad = match self.elements().map(|x| x.to_string().len()).max() {
-            Some(element) => element,
-            None => return write!(f, "[[]]"),
-        };
-        let num_rows = self.0.num_rows();
-        let num_columns = self.0.num_columns();
-        let mut string_repr: Vec<String> = vec![];
-        self.rows_iter().enumerate().for_each(|(i, row)| {
-            if i != 0 {
-                string_repr.push(" ".to_string());
-            } else {
-                string_repr.push("[".to_string());
-            }
-            string_repr.push("[".to_string());
-            row.enumerate().for_each(|(j, elem)| {
-                string_repr.push(format!("{:>lpad$}", elem, lpad = lpad).to_string());
-                if j != num_columns - 1 {
-                    string_repr.push(", ".to_string());
-                }
-            });
-            string_repr.push("]".to_string());
-            if i == num_rows - 1 {
-                string_repr.push("]".to_string());
-            } else {
-                string_repr.push("\n".to_string());
-            }
-        });
-        write!(f, "{}", string_repr.join(""))
-    }
-}
-
-impl Display for Matrix<usize> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
-        let str_repr = Matrix::from_elements(
-            &self.elements().map(|x| x.to_string()).collect(),
-            self.num_rows(),
-            self.num_columns(),
-        );
-        write!(f, "{}", str_repr)
-    }
-}
-
-impl Display for Matrix<bool> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
-        let str_repr = Matrix::from_elements(
-            &self.elements().map(|x| (*x as usize).to_string()).collect(),
-            self.num_rows(),
-            self.num_columns(),
-        );
-        write!(f, "{}", str_repr)
-    }
-}
-
-impl<T> Display for Matrix<Option<T>>
-where
-    T: ToString,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
-        let str_repr = Matrix::from_elements(
-            &self
-                .elements()
-                .map(|x| match x {
-                    Some(e) => e.to_string(),
-                    None => "?".to_string(),
-                })
-                .collect(),
-            self.num_rows(),
-            self.num_columns(),
-        );
-        write!(f, "{}", str_repr)
-    }
-}
-
-struct MatrixVisitor<T> {
-    _phantom: std::marker::PhantomData<T>,
-}
-impl<'de, T> Visitor<'de> for MatrixVisitor<T>
-where
-    T: Deserialize<'de> + Clone,
-{
-    type Value = Matrix<T>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("could not deserialize Matrix")
-    }
-
-    fn visit_seq<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        let mut matrix: Vec<Vec<T>> = vec![];
-        while let Some(element) = map.next_element::<Vec<T>>()? {
-            matrix.push(element);
-        }
-        Ok(Matrix::from_rows(&matrix))
-    }
-}
-
-impl<'de, T> Deserialize<'de> for Matrix<T>
-where
-    T: Deserialize<'de> + Clone,
-{
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_seq(MatrixVisitor {
-            _phantom: std::marker::PhantomData,
-        })
     }
 }
