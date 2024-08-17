@@ -1,7 +1,7 @@
-use crate::{matrix::Matrix, shortest_path};
+use crate::matrix::Matrix;
 use serde::Deserialize;
 use serde_json;
-use std::{fmt::Display, fs::File, io::BufReader, sync::Arc};
+use std::{cmp::max, fmt::Display, fs::File, io::BufReader, sync::Arc};
 
 #[derive(Deserialize, Debug)]
 pub struct Network {
@@ -42,6 +42,19 @@ struct BTuple {
     intermediate_arc_set: Arc<Matrix<bool>>,
 }
 
+impl AuxiliaryNetwork {
+    fn max_consistent_flows(&self) -> Vec<usize> {
+        let mut max_flow_values: Vec<usize> = vec![usize::MAX; self.fixed_arcs.len()];
+        self.scenarios.iter().for_each(|scenario| {
+            max_flow_values
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, f_v)| *f_v = max(*f_v, scenario.b_tuples_fixed[i].len()));
+        });
+        max_flow_values
+    }
+}
+
 impl Network {
     pub fn from_file(filename: &str) -> Self {
         let file = match File::open(filename) {
@@ -50,12 +63,14 @@ impl Network {
         };
         let reader = BufReader::new(file);
 
-        let network: Network = match serde_json::from_reader(reader) {
+        log::debug!("Deserializing network from {}", filename);
+        let mut network: Network = match serde_json::from_reader(reader) {
             Ok(result) => result,
             Err(msg) => panic!("Failed to parse the network: {}", msg),
         };
 
         network.validate();
+        network.preprocess();
         network
     }
 
@@ -74,12 +89,15 @@ impl Network {
                 panic!("Matrices in b have differing dimensions or are not quadratic");
             }
         }
+
+        log::debug!("Network is valid.");
     }
 
-    fn preprocess(mut self) {
+    fn preprocess(&mut self) {
+        log::debug!("Beginning to preprocess network.");
         match self.auxiliary_network {
             Some(_) => {}
-            None => self.auxiliary_network = Some(Box::new(AuxiliaryNetwork::from(&self))),
+            None => self.auxiliary_network = Some(Box::new(AuxiliaryNetwork::from(&*self))),
         }
     }
 }
@@ -97,14 +115,14 @@ pub fn floyd_warshall(
         .indices()
         .filter(|(x, y)| *capacities.get(*x, *y) > 0)
     {
-        log::debug!("dist {} -> {} is {}", x, y, costs.get(x, y));
-        let _ = dist.set(x, y, *costs.get(x, y));
-        let _ = prev.set(x, y, Some(x));
+        log::trace!("dist {} -> {} is {}", x, y, costs.get(x, y));
+        dist.set(x, y, *costs.get(x, y));
+        prev.set(x, y, Some(x));
     }
     for v in 0..capacities.num_rows() {
-        log::debug!("pred. of {} is {} with distance 0", v, v);
-        let _ = dist.set(v, v, 0);
-        let _ = prev.set(v, v, Some(v));
+        log::trace!("pred. of {} is {} with distance 0", v, v);
+        dist.set(v, v, 0);
+        prev.set(v, v, Some(v));
     }
     for k in 0..capacities.num_rows() {
         for i in 0..capacities.num_rows() {
@@ -113,18 +131,24 @@ pub fn floyd_warshall(
                     && *dist.get(k, j) < usize::MAX
                     && *dist.get(i, j) > dist.get(i, k) + dist.get(k, j)
                 {
-                    log::debug!(
+                    log::trace!(
                         "new dist {} -> {} is {}",
                         i,
                         j,
                         dist.get(i, k) + dist.get(k, j)
                     );
-                    let _ = dist.set(i, j, dist.get(i, k) + dist.get(k, j));
-                    let _ = prev.set(i, j, *prev.get(k, j));
+                    dist.set(i, j, dist.get(i, k) + dist.get(k, j));
+                    prev.set(i, j, *prev.get(k, j));
                 }
             }
         }
     }
+
+    log::debug!(
+        "Floyd-Warshall resulted in distance map\n{}\nand predecessor map\n{}",
+        dist,
+        prev
+    );
 
     (dist, prev)
 }
@@ -154,6 +178,14 @@ impl From<&Network> for AuxiliaryNetwork {
             num_vertices += 1;
             fixed_arcs.push((num_vertices, a.1));
             fixed_arcs_memory.push((num_vertices, a.0));
+
+            log::debug!(
+                "Extended the network with an auxiliary fixed arc ({}->{}) replacing ({}->{})",
+                num_vertices,
+                a.1,
+                a.0,
+                a.1
+            );
         }
 
         // while in later iterations, capacities can differ between (s, t) pairs in BTuples,
@@ -214,35 +246,45 @@ fn generate_b_tuples(
                 Some(i) => &mut fixed[i],
                 None => &mut free,
             };
-            target.push(Box::new(BTuple {
-                s,
-                t,
-                intermediate_arc_set: Arc::clone(intermediate_arc_sets.get(s, t)),
-            }));
+            // we are working with single units of supply i order to prevent dead ends
+            for _ in 0..*balances.get(s, t) {
+                target.push(Box::new(BTuple {
+                    s,
+                    t,
+                    intermediate_arc_set: Arc::clone(intermediate_arc_sets.get(s, t)),
+                }));
+            }
         });
 
     (free, fixed)
 }
 
-fn intermediate_arc_sets(
+pub fn intermediate_arc_sets(
     dist: &Matrix<usize>,
     capacities: &Matrix<usize>,
     delta_fn: fn(usize) -> usize,
 ) -> Matrix<Matrix<bool>> {
     let m = dist.num_rows();
-    let mut intermediate_arc_sets = Matrix::filled_with(Matrix::filled_with(false, m, m), m, m);
+    let mut arc_sets = Matrix::filled_with(Matrix::filled_with(false, m, m), m, m);
 
     for (s, t) in dist.indices() {
-        if s == t {
+        if s == t || *dist.get(s, t) == usize::MAX {
             continue;
         }
         let max_path_length = delta(delta_fn, &dist, s, t);
-        let arc_set = intermediate_arc_sets.get_mut(s, t);
+        let arc_set = arc_sets.get_mut(s, t);
 
         for (x, y) in dist.indices() {
             // ignores arcs that lead to s or away from t, as well as arcs with no capacity (i.e.
-            // non-existent arcs)
-            if x == y || y == s || x == t || *capacities.get(x, y) == 0 {
+            // non-existent arcs) and unreachable arcs
+            if x == y
+                || y == s
+                || x == t
+                || *capacities.get(x, y) == 0
+                || *dist.get(s, x) == usize::MAX
+                || *dist.get(x, y) == usize::MAX
+                || *dist.get(y, t) == usize::MAX
+            {
                 continue;
             }
             let detour_length = dist.get(s, x) + dist.get(x, y) + dist.get(y, t);
@@ -250,8 +292,15 @@ fn intermediate_arc_sets(
                 arc_set.set(x, y, true);
             }
         }
+
+        log::debug!(
+            "Generated the following intermediate arc set for ({}, {}):\n{}",
+            s,
+            t,
+            arc_set
+        );
     }
-    intermediate_arc_sets
+    arc_sets
 }
 
 fn delta(delta_fn: fn(usize) -> usize, dist: &Matrix<usize>, s: usize, t: usize) -> usize {
@@ -273,6 +322,11 @@ pub fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Matrix<usize> {
             }
         }
     });
+
+    log::debug!(
+        "Predecessor map has been inverted into the following succcessor map:\n{}",
+        succ
+    );
 
     succ
 }
@@ -300,4 +354,33 @@ where
         matrix_unwrapped[i].push(row_col.1[i].clone());
     }
     Matrix::<T>::from_rows(&matrix_unwrapped)
+}
+
+pub fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Vec<usize> {
+    let mut p = match prev.get(s, t) {
+        Some(_) => vec![t],
+        None => return vec![],
+    };
+
+    while s != t {
+        t = prev.get(s, t).expect("");
+        p.push(t);
+    }
+
+    p.reverse();
+    p
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extend_matrix() {
+        let initial = vec![vec![1, 2], vec![4, 5]];
+        assert_eq!(
+            extend_matrix(&Matrix::from_rows(&initial), (vec![7, 8], vec![3, 6, 9])).as_rows(),
+            vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]]
+        );
+    }
 }
