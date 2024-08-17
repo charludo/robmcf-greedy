@@ -3,23 +3,45 @@ use serde::Deserialize;
 use serde_json;
 use std::{fmt::Display, fs::File, io::BufReader};
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Network {
-    pub v: Vec<String>,
-    pub u: Matrix<usize>,
-    pub c: Matrix<usize>,
-    pub b: Vec<Matrix<usize>>,
-    pub a_fix: Vec<(usize, usize)>,
+    pub vertices: Vec<String>,
+    pub capacities: Matrix<usize>,
+    pub costs: Matrix<usize>,
+    pub balances: Vec<Matrix<usize>>,
+    pub fixed_arcs: Vec<(usize, usize)>,
+    #[serde(skip)]
+    pub arc_loads: Option<Vec<Matrix<usize>>>,
+    #[serde(skip)]
+    auxiliary_network: Option<Box<AuxiliaryNetwork>>,
 }
 
 #[derive(Debug)]
-pub struct ExtendedNetwork {
-    pub v: Vec<String>,
-    pub u: Matrix<usize>,
-    pub c: Matrix<usize>,
-    pub b: Vec<Matrix<usize>>,
-    pub a_fix: Vec<(usize, usize)>,
-    pub extension_mappings: Vec<(usize, usize)>,
+struct AuxiliaryNetwork {
+    num_vertices: usize,
+    num_scenarios: usize,
+    costs: Box<Matrix<usize>>,
+    scenarios: Vec<Box<Scenario>>,
+    fixed_arcs: Vec<(usize, usize)>,
+    fixed_arcs_memory: Vec<(usize, usize)>,
+}
+
+#[derive(Debug)]
+struct Scenario {
+    capacities: Matrix<usize>,
+    b_tuples_free: Vec<Box<BTuple>>,
+    b_tuples_fixed: Vec<Box<BTuple>>,
+    successor_map: Matrix<usize>,
+    distance_map: Matrix<usize>,
+}
+
+#[derive(Debug, Clone)]
+struct BTuple {
+    s: usize,
+    t: usize,
+    supply: usize,
+    lambda: usize,
+    arc_set: Matrix<bool>,
 }
 
 impl Network {
@@ -36,25 +58,28 @@ impl Network {
         };
 
         network.validate();
-
         network
     }
 
     fn validate(&self) {
-        let len = self.v.len();
+        let len = self.vertices.len();
 
-        let matrices = [&self.u, &self.c];
+        let matrices = [&self.capacities, &self.costs];
         for matrix in matrices {
             if matrix.num_rows() != len || matrix.num_columns() != len {
                 panic!("Matrices u, c have differing dimensions or are not quadratic");
             }
         }
 
-        for matrix in &self.b {
+        for matrix in &self.balances {
             if matrix.num_rows() != len || matrix.num_columns() != len {
                 panic!("Matrices in b have differing dimensions or are not quadratic");
             }
         }
+    }
+
+    fn auxiliary_network(self) -> AuxiliaryNetwork {
+        AuxiliaryNetwork::from(&self)
     }
 }
 
@@ -98,38 +123,38 @@ pub fn floyd_warshall(
     (dist, prev)
 }
 
-impl From<Network> for ExtendedNetwork {
-    fn from(n: Network) -> Self {
-        let a_fix = n.a_fix;
-        let mut n = ExtendedNetwork {
-            v: n.v,
-            u: n.u,
-            c: n.c,
-            b: n.b,
-            a_fix: vec![],
-            extension_mappings: vec![],
+impl From<&Network> for AuxiliaryNetwork {
+    fn from(n: &Network) -> Self {
+        let fixed_arcs = n.fixed_arcs.clone();
+        let mut n = AuxiliaryNetwork {
+            num_vertices: n.vertices.len(),
+            num_scenarios: n.balances.len(),
+            costs: Box::new(n.costs.clone()),
+            scenarios: vec![],
+            fixed_arcs: vec![],
+            fixed_arcs_memory: vec![],
         };
-        for a in a_fix.iter() {
-            let k = n.v.len();
-            n.v.push(format!("(v{}={}->{})", k + 1, n.v[a.0], n.v[a.1]));
-
-            n.u = extend_matrix(&n.u, create_extension_vertex(&n.u, a.0, a.1));
-            n.u.set(a.0, a.1, 0);
-
-            n.c = extend_matrix(&n.c, create_extension_vertex(&n.c, a.0, a.1));
-            n.c.set(a.0, a.1, 0);
-
-            let mut new_b: Vec<Matrix<usize>> = vec![];
-            for b in &n.b {
-                new_b.push(extend_matrix(
-                    &b,
-                    (vec![0; b.row_len()], vec![0; b.column_len() + 1]),
-                ));
-            }
-
-            n.a_fix.push((k + 1, a.1));
-            n.extension_mappings.push((k + 1, a.0));
-        }
+        // for a in fixed_arcs.iter() {
+        // let k = n.v.len();
+        // n.v.push(format!("(v{}={}->{})", k + 1, n.v[a.0], n.v[a.1]));
+        //
+        // n.u = extend_matrix(&n.u, create_extension_vertex(&n.u, a.0, a.1));
+        // n.u.set(a.0, a.1, 0);
+        //
+        // n.c = extend_matrix(&n.c, create_extension_vertex(&n.c, a.0, a.1));
+        // n.c.set(a.0, a.1, 0);
+        //
+        // let mut new_b: Vec<Matrix<usize>> = vec![];
+        // for b in &n.b {
+        //     new_b.push(extend_matrix(
+        //         &b,
+        //         (vec![0; b.row_len()], vec![0; b.column_len() + 1]),
+        //     ));
+        // }
+        //
+        // n.fixed_arcs.push((k + 1, a.1));
+        // n.extension_mappings.push((k + 1, a.0));
+        // }
 
         n
     }

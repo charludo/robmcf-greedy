@@ -32,7 +32,7 @@ fn main() {
     let n = Network::from_file("network.json");
     println!("Network: {:?}", n);
 
-    let (dist, prev) = floyd_warshall(&n.u, &n.c);
+    let (dist, prev) = floyd_warshall(&n.capacities, &n.costs);
     println!("Distances:");
     println!("{}", &dist);
     println!("Predecessors:");
@@ -42,7 +42,7 @@ fn main() {
     println!("Shortest path v1 -> v3: {:?}", shortest_path(&prev, 0, 2));
     println!("Shortest path v2 -> v3: {:?}", shortest_path(&prev, 1, 2));
 
-    let arc_sets = intermediate_arc_sets(&dist, &n.u, |x| 2 * x);
+    let arc_sets = intermediate_arc_sets(&dist, &n.capacities, |x| 2 * x);
     println!("Intermediate Arc Sets:");
     for (s, t) in arc_sets.indices() {
         println!("A({}, {}) = ", s + 1, t + 1);
@@ -50,7 +50,7 @@ fn main() {
         println!("");
     }
 
-    let b_tuples = generate_b_tuples((0, 2), &n.b, &arc_sets);
+    let b_tuples = generate_b_tuples((0, 2), &n.balances, &arc_sets);
     for b_t in b_tuples.0 {
         println!("{}", b_t);
     }
@@ -94,7 +94,7 @@ fn greedy<'a>(
     prev: &Matrix<Option<usize>>,
     a_fix: (usize, usize),
 ) -> Vec<Matrix<usize>> {
-    let mut relative_attraction = vec![0; n.b.len()];
+    let mut relative_attraction = vec![0; n.balances.len()];
     let a_fix_cost = dist.get(a_fix.0, a_fix.1);
     while !b_tuples.is_empty() {
         let mut b_tuples_new: Vec<BTuple> = vec![];
@@ -128,7 +128,7 @@ fn greedy<'a>(
         waiting_at_a_fix.iter_mut().for_each(|a_fix_b_tuples| {
             a_fix_b_tuples.retain(|b_t| b_t.supply > 0);
         });
-        let mut scenario_supplies: Vec<usize> = vec![0; n.b.len()];
+        let mut scenario_supplies: Vec<usize> = vec![0; n.balances.len()];
         b_tuples = b_tuples
             .into_iter()
             .filter(|b_t| b_t.supply > 0)
