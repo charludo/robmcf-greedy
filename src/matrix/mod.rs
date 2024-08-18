@@ -1,5 +1,6 @@
-pub mod display;
-pub mod matrix;
-pub mod serde;
+mod display;
+mod eq;
+mod matrix;
+mod serde;
 
 pub use matrix::*;

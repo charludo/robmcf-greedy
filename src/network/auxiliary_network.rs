@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
     matrix::Matrix,
+    network::preprocessing::create_extension_vertex,
 };
 
 use super::{
@@ -19,6 +20,7 @@ pub(super) struct AuxiliaryNetwork {
     pub(super) fixed_arcs: Vec<(usize, usize)>,
     pub(super) fixed_arcs_memory: Vec<(usize, usize)>,
     pub(super) intermediate_arc_sets: Matrix<Arc<Matrix<bool>>>,
+    pub(super) arc_loads: Vec<Matrix<usize>>,
 }
 
 impl AuxiliaryNetwork {
@@ -37,20 +39,6 @@ impl AuxiliaryNetwork {
         });
         max_flow_values
     }
-
-    fn create_extension_vertex(
-        matrix: &Matrix<usize>,
-        s: usize,
-        t: usize,
-    ) -> (Vec<usize>, Vec<usize>) {
-        let mut new_row: Vec<usize> = vec![0; matrix.row_len()];
-        new_row[t] = *matrix.get(s, t);
-
-        let mut new_column = matrix.as_columns()[s].clone();
-        new_column.push(0);
-
-        (new_row, new_column)
-    }
 }
 
 impl From<&Network> for AuxiliaryNetwork {
@@ -62,19 +50,21 @@ impl From<&Network> for AuxiliaryNetwork {
         let mut capacities = network.capacities.clone();
         let mut balances = network.balances.clone();
         let mut scenarios: Vec<Box<Scenario>> = vec![];
+        let arc_loads =
+            vec![Matrix::filled_with(0, num_vertices, num_vertices); network.balances.len()];
 
         for a in network.fixed_arcs.iter() {
-            let (row, col) = AuxiliaryNetwork::create_extension_vertex(&capacities, a.0, a.1);
-            capacities.extend(row, col);
+            let (row, col) = create_extension_vertex(&capacities, a.0, a.1);
+            capacities.extend(&row, &col);
             capacities.set(a.0, a.1, 0);
 
-            let (row, col) = AuxiliaryNetwork::create_extension_vertex(&costs, a.0, a.1);
-            costs.extend(row, col);
+            let (row, col) = create_extension_vertex(&costs, a.0, a.1);
+            costs.extend(&row, &col);
             costs.set(a.0, a.1, 0);
 
             balances.iter_mut().for_each(|balance| {
-                let (row, col) = AuxiliaryNetwork::create_extension_vertex(&balance, a.0, a.1);
-                balance.extend(row, col);
+                let (row, col) = create_extension_vertex(&balance, a.0, a.1);
+                balance.extend(&row, &col);
                 balance.set(a.0, a.1, 0);
             });
 
@@ -100,17 +90,9 @@ impl From<&Network> for AuxiliaryNetwork {
 
         // intermediate arc sets only need to be computed once. Their sole purpose is to act as a
         // mask on capacities when Floyd-Warshall is refreshed in the greedy iterations.
-        let arc_sets = Matrix::from_elements(
-            &intermediate_arc_sets(&distance_map, &capacities, |x| 2 * x)
-                .elements()
-                .map(|x| Arc::new(x.clone()))
-                .collect(),
-            num_vertices,
-            num_vertices,
-        ); // TODO: get d
-           // from
-           // somewehere...
-
+        let arc_sets = intermediate_arc_sets(&distance_map, &costs, &capacities, |x| 2 * x); // TODO: get d
+                                                                                             // from
+                                                                                             // somewehere...
         balances.iter().for_each(|balance| {
             let (b_tuples_free, b_tuples_fixed) =
                 generate_b_tuples(&balance, &arc_sets, &fixed_arcs);
@@ -132,6 +114,7 @@ impl From<&Network> for AuxiliaryNetwork {
             fixed_arcs,
             fixed_arcs_memory,
             intermediate_arc_sets: arc_sets,
+            arc_loads,
         }
     }
 }

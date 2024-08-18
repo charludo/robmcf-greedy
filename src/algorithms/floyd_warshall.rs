@@ -89,3 +89,86 @@ fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Vec<us
     p.reverse();
     p
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn setup() -> (
+        Matrix<usize>,
+        Matrix<usize>,
+        Matrix<usize>,
+        Matrix<Option<usize>>,
+        Matrix<usize>,
+    ) {
+        let capacities: Matrix<usize> =
+            Matrix::from_elements(&vec![0, 0, 2, 1, 0, 2, 3, 2, 0], 3, 3);
+        let costs: Matrix<usize> = Matrix::from_elements(&vec![0, 0, 3, 4, 0, 6, 7, 8, 0], 3, 3);
+        let distance_map: Matrix<usize> =
+            Matrix::from_elements(&vec![0, 11, 3, 4, 0, 6, 7, 8, 0], 3, 3);
+        let predecessor_map: Matrix<Option<usize>> = Matrix::from_elements(
+            &vec![
+                Some(0),
+                Some(2),
+                Some(0),
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(2),
+                Some(2),
+                Some(2),
+            ],
+            3,
+            3,
+        );
+        let successor_map: Matrix<usize> =
+            Matrix::from_elements(&vec![0, 2, 2, 0, 1, 2, 0, 1, 2], 3, 3);
+
+        (
+            capacities,
+            costs,
+            distance_map,
+            predecessor_map,
+            successor_map,
+        )
+    }
+
+    #[test]
+    fn test_floyd_warshall_distances() {
+        let (capacities, costs, distance_map, _, _) = setup();
+        let (dist, _) = floyd_warshall(&capacities, &costs);
+
+        assert_eq!(distance_map, dist);
+    }
+
+    #[test]
+    fn test_floyd_warshall_predecessors() {
+        let (capacities, costs, _, predecessor_map, _) = setup();
+        let (_, prev) = floyd_warshall(&capacities, &costs);
+
+        assert_eq!(predecessor_map, prev);
+    }
+
+    #[test]
+    fn test_shortest_path_0_0() {
+        let (_, _, _, predecessor_map, _) = setup();
+        let path = shortest_path(&predecessor_map, 0, 0);
+
+        assert_eq!(vec![0], path);
+    }
+
+    #[test]
+    fn test_shortest_path_0_1() {
+        let (_, _, _, predecessor_map, _) = setup();
+        let path = shortest_path(&predecessor_map, 0, 1);
+
+        assert_eq!(vec![0, 2, 1], path);
+    }
+
+    #[test]
+    fn test_invert_predecessors() {
+        let (_, _, _, predecessor_map, successor_map) = setup();
+        let succ = invert_predecessors(&predecessor_map);
+
+        assert_eq!(successor_map, succ);
+    }
+}

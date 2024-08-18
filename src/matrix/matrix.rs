@@ -75,7 +75,7 @@ impl<T> Matrix<T> {
         }
     }
 
-    pub fn apply_mask(&self, mask: Matrix<bool>, bottom: T) -> Self
+    pub fn apply_mask(&self, mask: &Matrix<bool>, bottom: T) -> Self
     where
         T: Clone,
     {
@@ -93,17 +93,17 @@ impl<T> Matrix<T> {
         )
     }
 
-    pub fn extend(&mut self, row: Vec<T>, col: Vec<T>)
+    pub fn extend(&mut self, row: &Vec<T>, column: &Vec<T>)
     where
         T: std::clone::Clone + Copy,
     {
         assert!(self.row_len() == row.len());
-        assert!(self.column_len() == col.len() - 1);
+        assert!(self.column_len() == column.len() - 1);
 
         let mut matrix_unwrapped = self.as_rows();
         matrix_unwrapped.push(row.clone());
-        for i in 0..col.len() {
-            matrix_unwrapped[i].push(col[i].clone());
+        for i in 0..column.len() {
+            matrix_unwrapped[i].push(column[i].clone());
         }
         let _ = std::mem::replace(self, Matrix::<T>::from_rows(&matrix_unwrapped));
     }
@@ -152,5 +152,31 @@ impl<T> Matrix<T> {
 
     pub fn num_columns(&self) -> usize {
         self.0.num_columns()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_apply_mask() {
+        let original: Matrix<usize> = Matrix::from_elements(&vec![1, 2, 3, 4], 2, 2);
+        let mask: Matrix<bool> = Matrix::from_elements(&vec![true, false, false, true], 2, 2);
+        let expected_result: Matrix<usize> =
+            Matrix::from_elements(&vec![1, usize::MAX, usize::MAX, 4], 2, 2);
+        assert_eq!(expected_result, original.apply_mask(&mask, usize::MAX));
+    }
+
+    #[test]
+    fn test_extend() {
+        let mut original: Matrix<usize> = Matrix::from_elements(&vec![1, 2, 4, 5], 2, 2);
+        let row: Vec<usize> = vec![7, 8];
+        let column: Vec<usize> = vec![3, 6, 9];
+        let expected_result: Matrix<usize> =
+            Matrix::from_elements(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 3);
+
+        original.extend(&row, &column);
+        assert_eq!(expected_result, original);
     }
 }
