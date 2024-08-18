@@ -68,9 +68,9 @@ impl From<&Network> for AuxiliaryNetwork {
                 balance.set(a.0, a.1, 0);
             });
 
-            num_vertices += 1;
             fixed_arcs.push((num_vertices, a.1));
             fixed_arcs_memory.push((num_vertices, a.0));
+            num_vertices += 1;
 
             log::debug!(
                 "Extended the network with an auxiliary fixed arc ({}->{}) replacing ({}->{})",

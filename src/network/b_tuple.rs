@@ -19,7 +19,7 @@ impl std::fmt::Display for BTuple {
             self.intermediate_arc_set
                 .indices()
                 .filter(|(s, t)| *self.intermediate_arc_set.get(*s, *t))
-                .map(|(s, t)| (s + 1, t + 1))
+                .map(|(s, t)| (s, t))
                 .collect::<Vec<(usize, usize)>>(),
         )
     }
