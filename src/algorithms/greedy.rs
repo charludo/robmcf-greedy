@@ -2,38 +2,45 @@ use crate::network::AuxiliaryNetwork;
 
 pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
     while network.exists_free_supply() {
-        let waiting_at_fixed_arcs = network.waiting();
+        let global_waiting_at_fixed_arcs = network.waiting();
 
         for scenario in network.scenarios.iter_mut() {
-            let fixed_arc = scenario.closest_fixed_arc(&network.fixed_arcs);
-            let relative_draw =
-                waiting_at_fixed_arcs.get(&fixed_arc).unwrap() - scenario.waiting_at(&fixed_arc);
+            let scenario_waiting_at_fixed_arcs = scenario.waiting(&network.fixed_arcs);
 
             scenario.b_tuples_free.retain_mut(|b_t| {
-                let cost_via_direct_path = scenario.distance_map.get(b_t.s, b_t.t);
-                let cost_via_fixed_arc = scenario.distance_map.get(b_t.s, fixed_arc.0)
-                    + network.costs.get(fixed_arc.0, fixed_arc.1)
-                    + scenario.distance_map.get(fixed_arc.1, b_t.t);
+                let (can_take_fixed_arc, fixed_arc) = b_t.closest_fixed_arc();
+                let mut next_vertex = *b_t.successor_map.get(b_t.s, b_t.t);
+                if can_take_fixed_arc {
+                    let relative_draw = global_waiting_at_fixed_arcs.get(&fixed_arc).unwrap()
+                        - scenario_waiting_at_fixed_arcs.get(&fixed_arc).unwrap();
+                    let cost_via_direct_path = b_t.distance_map.get(b_t.s, b_t.t);
+                    let cost_via_fixed_arc = b_t.distance_map.get(b_t.s, fixed_arc.0)
+                        + network.costs.get(fixed_arc.0, fixed_arc.1)
+                        + b_t.distance_map.get(fixed_arc.1, b_t.t);
 
-                let next_vertex = if *cost_via_direct_path < cost_via_fixed_arc - relative_draw {
-                    *scenario.successor_map.get(b_t.s, b_t.t)
-                } else {
-                    *scenario.successor_map.get(b_t.s, fixed_arc.0)
-                };
+                    if *cost_via_direct_path > cost_via_fixed_arc - relative_draw {
+                        next_vertex = *b_t.successor_map.get(b_t.s, b_t.t);
+                    }
+                }
                 log::debug!(
                     "Moving supply with destination {} via: ({}->{})",
                     b_t.t,
                     b_t.s,
                     next_vertex
                 );
-                scenario.arc_loads.increment(b_t.s, next_vertex);
+                let _ = scenario.arc_loads.increment(b_t.s, next_vertex);
+                let remaining_capacity = scenario.capacities.decrement(b_t.s, next_vertex);
+                if remaining_capacity == 0 {
+                    //
+                }
+
                 b_t.s = next_vertex;
 
                 if b_t.s == b_t.t {
                     return false;
                 }
 
-                if b_t.s == fixed_arc.0 {
+                if can_take_fixed_arc && b_t.s == fixed_arc.0 {
                     scenario
                         .b_tuples_fixed
                         .entry(fixed_arc)
@@ -64,6 +71,8 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                     .collect::<Vec<_>>();
                 consistently_moved_supply.retain_mut(|b_t| {
                     scenario.arc_loads.increment(fixed_arc.0, fixed_arc.1);
+                    scenario.capacities.decrement(fixed_arc.0, fixed_arc.1);
+                    b_t.mark_arc_used(&fixed_arc);
                     b_t.s = fixed_arc.1;
                     if b_t.s == b_t.t {
                         return false;

@@ -22,6 +22,9 @@ pub(super) fn generate_b_tuples(
     supply: &Matrix<usize>,
     intermediate_arc_sets: &Matrix<Arc<Matrix<bool>>>,
     fixed_arcs: &Vec<(usize, usize)>,
+    distance_map: &Matrix<usize>,
+    successor_map: &Matrix<usize>,
+    costs: &Matrix<usize>,
 ) -> (Vec<Box<BTuple>>, HashMap<(usize, usize), Vec<Box<BTuple>>>) {
     let mut free: Vec<Box<BTuple>> = vec![];
     let mut fixed: HashMap<(usize, usize), Vec<Box<BTuple>>> = HashMap::new();
@@ -29,18 +32,22 @@ pub(super) fn generate_b_tuples(
         .indices()
         .filter(|(s, t)| s != t && *supply.get(*s, *t) > 0)
         .for_each(|(s, t)| {
-            let b_tuple = Box::new(BTuple {
+            let mut b_tuple = Box::new(BTuple {
                 s,
                 t,
                 intermediate_arc_set: Arc::clone(intermediate_arc_sets.get(s, t)),
+                distance_map: distance_map.clone(),
+                successor_map: successor_map.clone(),
+                fixed_arc_distances: HashMap::new(),
             });
+            b_tuple.generate_fixed_arc_distances(&fixed_arcs, &costs);
 
             log::debug!(
                 "Generated {} BTuples for {} -> {}:\n{}",
                 *supply.get(s, t),
                 s,
                 t,
-                b_tuple
+                b_tuple,
             );
 
             // we are working with single units of supply in order to prevent dead ends

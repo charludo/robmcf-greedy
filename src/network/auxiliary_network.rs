@@ -126,12 +126,16 @@ impl From<&Network> for AuxiliaryNetwork {
                                                                                              // from
                                                                                              // somewehere...
         balances.iter().for_each(|balance| {
-            let (b_tuples_free, b_tuples_fixed) =
-                generate_b_tuples(&balance, &arc_sets, &fixed_arcs);
+            let (b_tuples_free, b_tuples_fixed) = generate_b_tuples(
+                &balance,
+                &arc_sets,
+                &fixed_arcs,
+                &distance_map,
+                &successor_map,
+                &costs,
+            );
             let scenario = Scenario {
                 capacities: capacities.clone(),
-                distance_map: distance_map.clone(),
-                successor_map: successor_map.clone(),
                 arc_loads: arc_loads.clone(),
                 b_tuples_free,
                 b_tuples_fixed,

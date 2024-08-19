@@ -156,9 +156,25 @@ impl<T> Matrix<T> {
 }
 
 impl Matrix<usize> {
-    pub fn increment(&mut self, row: usize, column: usize) {
+    pub fn increment(&mut self, row: usize, column: usize) -> usize {
         let old = *self.get(row, column);
-        self.set(row, column, old + 1);
+        if old < usize::MAX {
+            self.set(row, column, old + 1);
+        } else {
+            log::error!("Attempted to increment with overflow. Aborted.");
+            return old;
+        }
+        old + 1
+    }
+    pub fn decrement(&mut self, row: usize, column: usize) -> usize {
+        let old = *self.get(row, column);
+        if old > 0 {
+            self.set(row, column, old - 1);
+        } else {
+            log::error!("Attempted to decrement with underflow. Aborted.");
+            return old;
+        }
+        old - 1
     }
 }
 
