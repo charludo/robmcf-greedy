@@ -155,6 +155,13 @@ impl<T> Matrix<T> {
     }
 }
 
+impl Matrix<usize> {
+    pub fn increment(&mut self, row: usize, column: usize) {
+        let old = *self.get(row, column);
+        self.set(row, column, old + 1);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

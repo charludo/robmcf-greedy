@@ -11,6 +11,7 @@ pub(crate) struct Scenario {
     pub(crate) b_tuples_fixed: HashMap<(usize, usize), Vec<Box<BTuple>>>,
     pub(crate) successor_map: Matrix<usize>,
     pub(crate) distance_map: Matrix<usize>,
+    pub(crate) arc_loads: Matrix<usize>,
 }
 
 impl Scenario {

@@ -20,7 +20,6 @@ pub(crate) struct AuxiliaryNetwork {
     pub(crate) fixed_arcs: Vec<(usize, usize)>,
     pub(crate) fixed_arcs_memory: Vec<(usize, usize)>,
     pub(crate) intermediate_arc_sets: Matrix<Arc<Matrix<bool>>>,
-    pub(crate) arc_loads: Vec<Matrix<usize>>,
 }
 
 impl AuxiliaryNetwork {
@@ -70,27 +69,26 @@ impl From<&Network> for AuxiliaryNetwork {
         let mut capacities = network.capacities.clone();
         let mut balances = network.balances.clone();
         let mut scenarios: Vec<Box<Scenario>> = vec![];
-        let arc_loads =
-            vec![Matrix::filled_with(0, num_vertices, num_vertices); network.balances.len()];
 
         for a in network.fixed_arcs.iter() {
             let (row, col) = create_extension_vertex(&capacities, a.0, a.1);
             capacities.extend(&row, &col);
             capacities.set(a.0, a.1, 0);
+            capacities.set(a.0, num_vertices, usize::MAX); // add an infinite-capacity arc for flow
+                                                           // from a.0 wanting to pass along the
+                                                           // new fixed arc (set to cost 0 below)
 
             let (row, col) = create_extension_vertex(&costs, a.0, a.1);
             costs.extend(&row, &col);
             costs.set(a.0, a.1, 0);
+            costs.set(a.0, num_vertices, 0);
 
             balances.iter_mut().for_each(|balance| {
-                let (row, col) = create_extension_vertex(&balance, a.0, a.1);
-                balance.extend(&row, &col);
-                balance.set(a.0, a.1, 0);
+                balance.extend(&vec![0; num_vertices], &vec![0; num_vertices + 1]);
             });
 
             fixed_arcs.push((num_vertices, a.1));
             fixed_arcs_memory.push((num_vertices, a.0));
-            num_vertices += 1;
 
             log::debug!(
                 "Extended the network with an auxiliary fixed arc ({}->{}) replacing ({}->{})",
@@ -99,7 +97,21 @@ impl From<&Network> for AuxiliaryNetwork {
                 a.0,
                 a.1
             );
+            log::trace!("Capacities now look like this:\n{}", capacities);
+            log::trace!("Costs now look like this:\n{}", costs);
+            log::trace!(
+                "Balances now look like this:\n{}",
+                balances
+                    .iter()
+                    .map(|b| format!("{}", b))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
+
+            num_vertices += 1;
         }
+
+        let arc_loads = Matrix::filled_with(0, num_vertices, num_vertices);
 
         // while in later iterations, capacities can differ between (s, t) pairs in BTuples,
         // we can initially re-use distance and successor maps between all (s, t) pairs and
@@ -120,6 +132,7 @@ impl From<&Network> for AuxiliaryNetwork {
                 capacities: capacities.clone(),
                 distance_map: distance_map.clone(),
                 successor_map: successor_map.clone(),
+                arc_loads: arc_loads.clone(),
                 b_tuples_free,
                 b_tuples_fixed,
             };
@@ -134,7 +147,6 @@ impl From<&Network> for AuxiliaryNetwork {
             fixed_arcs,
             fixed_arcs_memory,
             intermediate_arc_sets: arc_sets,
-            arc_loads,
         }
     }
 }
