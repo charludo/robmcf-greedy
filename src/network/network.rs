@@ -15,7 +15,7 @@ pub struct Network {
     #[serde(skip)]
     pub arc_loads: Option<Vec<Matrix<usize>>>,
     #[serde(skip)]
-    auxiliary_network: Option<Box<AuxiliaryNetwork>>,
+    pub(crate) auxiliary_network: Option<Box<AuxiliaryNetwork>>,
 }
 
 impl Network {

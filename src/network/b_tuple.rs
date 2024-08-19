@@ -3,10 +3,10 @@ use std::sync::Arc;
 use crate::matrix::Matrix;
 
 #[derive(Debug, Clone)]
-pub(super) struct BTuple {
-    pub(super) s: usize,
-    pub(super) t: usize,
-    pub(super) intermediate_arc_set: Arc<Matrix<bool>>,
+pub(crate) struct BTuple {
+    pub(crate) s: usize,
+    pub(crate) t: usize,
+    pub(crate) intermediate_arc_set: Arc<Matrix<bool>>,
 }
 
 impl std::fmt::Display for BTuple {

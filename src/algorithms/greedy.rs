@@ -1,65 +1,65 @@
-use crate::{matrix::Matrix, network::Network};
+use crate::network::AuxiliaryNetwork;
 
-fn greedy<'a>(
-    mut b_tuples: Vec<BTuple<'a>>,
-    mut waiting_at_a_fix: Vec<Vec<BTuple<'a>>>,
-    n: &Network,
-    dist: &Matrix<usize>,
-    prev: &Matrix<Option<usize>>,
-    a_fix: (usize, usize),
-) -> Vec<Matrix<usize>> {
-    let mut relative_attraction = vec![0; n.balances.len()];
-    let a_fix_cost = dist.get(a_fix.0, a_fix.1);
-    while !b_tuples.is_empty() {
-        let mut b_tuples_new: Vec<BTuple> = vec![];
-        b_tuples.extend(get_consistent_flow_tuples(&mut waiting_at_a_fix));
-        b_tuples.iter_mut().for_each(|b_t| {
-            let path_cost_direct = *dist.get(b_t.s, b_t.t);
-            let path_cost_via_a_fix =
-                dist.get(b_t.s, a_fix.0) + a_fix_cost + dist.get(a_fix.1, b_t.t);
-            let next_vertex =
-                if path_cost_direct < path_cost_via_a_fix - relative_attraction[b_t.lambda] {
-                    shortest_path(prev, b_t.s, b_t.t)[1]
+fn greedy(network: &mut AuxiliaryNetwork) {
+    while network.exists_free_supply() {
+        let waiting_at_fixed_arcs = network.waiting();
+
+        for scenario in network.scenarios.iter_mut() {
+            let fixed_arc = scenario.closest_fixed_arc(&network.fixed_arcs);
+            let relative_draw =
+                waiting_at_fixed_arcs.get(&fixed_arc).unwrap() - scenario.waiting_at(&fixed_arc);
+
+            scenario.b_tuples_free.retain_mut(|b_t| {
+                let cost_via_direct_path = scenario.distance_map.get(b_t.s, b_t.t);
+                let cost_via_fixed_arc = scenario.distance_map.get(b_t.s, fixed_arc.0)
+                    + network.costs.get(fixed_arc.0, fixed_arc.1)
+                    + scenario.distance_map.get(fixed_arc.1, b_t.t);
+
+                if *cost_via_direct_path < cost_via_fixed_arc - relative_draw {
+                    let next_vertex_via_direct_path = scenario.successor_map.get(b_t.s, b_t.t);
+                    b_t.s = *next_vertex_via_direct_path;
                 } else {
-                    shortest_path(prev, b_t.s, a_fix.1)[1]
-                };
-
-            if next_vertex == b_t.t {
-                b_t.supply = 0;
-            }
-
-            let mut b_t_new = b_t.clone();
-            b_t_new.s = next_vertex;
-
-            if next_vertex == a_fix.0 {
-                waiting_at_a_fix[b_t.lambda].push(b_t_new);
-            } else {
-                b_tuples_new.push(b_t_new);
-            }
-            b_t.supply = 0;
-        });
-        b_tuples.extend(b_tuples_new);
-        waiting_at_a_fix.iter_mut().for_each(|a_fix_b_tuples| {
-            a_fix_b_tuples.retain(|b_t| b_t.supply > 0);
-        });
-        let mut scenario_supplies: Vec<usize> = vec![0; n.balances.len()];
-        b_tuples = b_tuples
-            .into_iter()
-            .filter(|b_t| b_t.supply > 0)
-            .inspect(|b_t| {
-                if b_t.s == a_fix.0 {
-                    scenario_supplies[b_t.lambda] += b_t.supply
+                    let next_vertex_via_fixed_arc = scenario.successor_map.get(b_t.s, fixed_arc.0);
+                    b_t.s = *next_vertex_via_fixed_arc;
                 }
-            })
-            .collect();
 
-        let total_supply: usize = scenario_supplies.iter().sum();
-        relative_attraction
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, attr)| {
-                *attr = total_supply - scenario_supplies[i];
+                if b_t.s == b_t.t {
+                    return false;
+                }
+
+                if b_t.s == fixed_arc.0 {
+                    scenario
+                        .b_tuples_fixed
+                        .entry(fixed_arc)
+                        .or_insert_with(Vec::new)
+                        .push(b_t.clone());
+                    return false;
+                }
+
+                true
             });
+        }
+
+        let consistent_flows_to_move = network.max_consistent_flows();
+        network.fixed_arcs.iter().for_each(|fixed_arc| {
+            let consistent_flow_to_move = consistent_flows_to_move.get(fixed_arc).unwrap();
+            network.scenarios.iter_mut().for_each(|scenario| {
+                let mut consistently_moved_supply = scenario
+                    .b_tuples_fixed
+                    .entry(*fixed_arc)
+                    .or_insert_with(Vec::new)
+                    .drain(0..*consistent_flow_to_move)
+                    .collect::<Vec<_>>();
+                consistently_moved_supply.retain_mut(|b_t| {
+                    b_t.s = fixed_arc.1;
+                    if b_t.s == b_t.t {
+                        return false;
+                    }
+
+                    true
+                });
+                scenario.b_tuples_free.extend(consistently_moved_supply)
+            });
+        });
     }
-    vec![]
 }

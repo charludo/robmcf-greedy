@@ -13,18 +13,18 @@ use super::{
 };
 
 #[derive(Debug)]
-pub(super) struct AuxiliaryNetwork {
-    pub(super) num_vertices: usize,
-    pub(super) costs: Matrix<usize>,
-    pub(super) scenarios: Vec<Box<Scenario>>,
-    pub(super) fixed_arcs: Vec<(usize, usize)>,
-    pub(super) fixed_arcs_memory: Vec<(usize, usize)>,
-    pub(super) intermediate_arc_sets: Matrix<Arc<Matrix<bool>>>,
-    pub(super) arc_loads: Vec<Matrix<usize>>,
+pub(crate) struct AuxiliaryNetwork {
+    pub(crate) num_vertices: usize,
+    pub(crate) costs: Matrix<usize>,
+    pub(crate) scenarios: Vec<Box<Scenario>>,
+    pub(crate) fixed_arcs: Vec<(usize, usize)>,
+    pub(crate) fixed_arcs_memory: Vec<(usize, usize)>,
+    pub(crate) intermediate_arc_sets: Matrix<Arc<Matrix<bool>>>,
+    pub(crate) arc_loads: Vec<Matrix<usize>>,
 }
 
 impl AuxiliaryNetwork {
-    fn max_consistent_flows(&self) -> HashMap<(usize, usize), usize> {
+    pub(crate) fn max_consistent_flows(&self) -> HashMap<(usize, usize), usize> {
         let mut max_flow_values: HashMap<(usize, usize), usize> = HashMap::new();
         self.fixed_arcs.iter().for_each(|fixed_arc| {
             self.scenarios.iter().for_each(|scenario| {
@@ -32,12 +32,32 @@ impl AuxiliaryNetwork {
                     *fixed_arc,
                     *std::cmp::max(
                         max_flow_values.get(fixed_arc).unwrap_or(&0),
-                        &scenario.waiting_at(*fixed_arc),
+                        &scenario.waiting_at(fixed_arc),
                     ),
                 );
             });
         });
         max_flow_values
+    }
+
+    pub(crate) fn waiting(&self) -> HashMap<(usize, usize), usize> {
+        let mut wait_map: HashMap<(usize, usize), usize> = HashMap::new();
+        self.fixed_arcs.iter().for_each(|fixed_arc| {
+            wait_map.insert(*fixed_arc, self.waiting_at(fixed_arc));
+        });
+        wait_map
+    }
+
+    pub(crate) fn waiting_at(&self, fixed_arc: &(usize, usize)) -> usize {
+        self.scenarios.iter().map(|s| s.waiting_at(fixed_arc)).sum()
+    }
+
+    pub(crate) fn exists_free_supply(&self) -> bool {
+        self.scenarios
+            .iter()
+            .map(|s| s.b_tuples_free.len())
+            .sum::<usize>()
+            != 0
     }
 }
 
