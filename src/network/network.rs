@@ -1,9 +1,10 @@
-use crate::matrix::Matrix;
+use crate::{algorithms::greedy, matrix::Matrix};
+use core::panic;
 use serde::Deserialize;
 use serde_json;
 use std::{fmt::Display, fs::File, io::BufReader};
 
-use super::auxiliary_network::AuxiliaryNetwork;
+use super::{auxiliary_network::AuxiliaryNetwork, solution::Solution};
 
 #[derive(Deserialize, Debug)]
 pub struct Network {
@@ -13,7 +14,7 @@ pub struct Network {
     pub balances: Vec<Matrix<usize>>,
     pub fixed_arcs: Vec<(usize, usize)>,
     #[serde(skip)]
-    pub arc_loads: Option<Vec<Matrix<usize>>>,
+    pub arc_loads: Solution,
     #[serde(skip)]
     pub(crate) auxiliary_network: Option<Box<AuxiliaryNetwork>>,
 }
@@ -27,17 +28,13 @@ impl Network {
         let reader = BufReader::new(file);
 
         log::debug!("Deserializing network from {}", filename);
-        let mut network: Network = match serde_json::from_reader(reader) {
+        match serde_json::from_reader(reader) {
             Ok(result) => result,
             Err(msg) => panic!("Failed to parse the network: {}", msg),
-        };
-
-        network.validate();
-        network.preprocess();
-        network
+        }
     }
 
-    fn validate(&self) {
+    pub fn validate_network(&self) {
         let len = self.vertices.len();
 
         let matrices = [&self.capacities, &self.costs];
@@ -47,20 +44,93 @@ impl Network {
             }
         }
 
-        for matrix in &self.balances {
+        let total_capacity = self.capacities.sum();
+        for (i, matrix) in self.balances.iter().enumerate() {
             if matrix.num_rows() != len || matrix.num_columns() != len {
                 panic!("Matrices in b have differing dimensions or are not quadratic");
             }
+
+            for (s, t) in matrix.indices() {
+                if s == t && *matrix.get(s, t) > 0 {
+                    panic!(
+                        "Circular supply ({}->{}) is not allowed.",
+                        self.vertices[s], self.vertices[t]
+                    );
+                }
+            }
+
+            let as_columns = matrix.as_columns();
+            for (j, row) in matrix.as_rows().iter().enumerate() {
+                if row.into_iter().sum::<usize>()
+                    != as_columns[j].clone().into_iter().sum::<usize>()
+                {
+                    log::warn!(
+                        "Vertex {} has supply {}, but demand {} in scenario {}.",
+                        self.vertices[j],
+                        row.into_iter().sum::<usize>(),
+                        as_columns[j].clone().into_iter().sum::<usize>(),
+                        i + 1
+                    );
+                }
+            }
+
+            if total_capacity < matrix.sum() {
+                panic!("No feasible soution exists: balance {} has higher supply than the network has capacities.", i+1);
+            }
         }
 
-        log::debug!("Network is valid.");
+        log::info!("Network is valid.");
     }
 
-    fn preprocess(&mut self) {
-        log::debug!("Beginning to preprocess network.");
+    pub fn preprocess(&mut self) {
+        log::info!("Beginning to preprocess network.");
         match self.auxiliary_network {
             Some(_) => {}
             None => self.auxiliary_network = Some(Box::new(AuxiliaryNetwork::from(&*self))),
+        }
+    }
+
+    pub fn solve(&mut self) {
+        log::info!("Attempting to find a feasible robust flow...");
+        let auxiliary_network = std::mem::take(&mut self.auxiliary_network);
+        self.arc_loads = match auxiliary_network {
+            Some(mut aux) => {
+                log::debug!("Found auxiliary network, calling greedy on it...");
+                greedy(&mut aux);
+                Solution::from(&*aux)
+            }
+            None => {
+                log::error!("No auxiliary network found. Forgot to preprocess?");
+                Solution::default()
+            }
+        }
+    }
+
+    pub fn validate_solution(&self) {
+        if self.arc_loads.get().is_none() {
+            log::error!("Solution is empty. Forgot to solve?");
+            return;
+        }
+        log::info!("Assessing validity of found solution...");
+
+        let arc_loads = self.arc_loads.get().unwrap();
+        if arc_loads.len() != self.balances.len() {
+            log::error!(
+                "Found {} scenario solutions, but expected {}.",
+                arc_loads.len(),
+                self.balances.len()
+            );
+        }
+
+        for (i, balance) in self.balances.iter().enumerate() {
+            if balance.sum() != arc_loads[i].sum() {
+                log::error!("Scenario {} has a total supply of {}, but its solution has a total arc load of {}.", i + 1, balance.sum(), arc_loads[i].sum());
+            }
+            for (s, t) in self.capacities.indices().filter(|(s, t)| s != t) {
+                if self.capacities.get(s, t) < arc_loads[i].get(s, t) {
+                    log::error!("Scenario {} places an arc load of {} on arc ({}->{}), but this arc only has capacity {}.", i+1, arc_loads[i].get(s, t), self.vertices[s], self.vertices[t], self.capacities.get(s, t));
+                }
+            }
         }
     }
 }
@@ -86,15 +156,7 @@ impl Display for Network {
                 .collect::<Vec<String>>()
                 .join(", ")
         ));
-        match &self.arc_loads {
-            Some(loads) => {
-                string_repr.push("The following arc loads constitute the solution:".to_string());
-                loads.iter().enumerate().for_each(|(i, load)| {
-                    string_repr.push(format!("Scenario {}:\n{:>8}", i + 1, load));
-                });
-            }
-            None => string_repr.push("Solution has not been calculated.".to_string()),
-        };
+        string_repr.push(format!("{}", self.arc_loads));
         write!(f, "{}", string_repr.join("\n"))
     }
 }

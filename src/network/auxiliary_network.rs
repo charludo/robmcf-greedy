@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
@@ -14,12 +14,10 @@ use super::{
 
 #[derive(Debug)]
 pub(crate) struct AuxiliaryNetwork {
-    pub(crate) num_vertices: usize,
     pub(crate) costs: Matrix<usize>,
     pub(crate) scenarios: Vec<Box<Scenario>>,
     pub(crate) fixed_arcs: Vec<(usize, usize)>,
-    pub(crate) fixed_arcs_memory: Vec<(usize, usize)>,
-    pub(crate) intermediate_arc_sets: Matrix<Arc<Matrix<bool>>>,
+    pub(crate) fixed_arcs_memory: HashMap<usize, usize>,
 }
 
 impl AuxiliaryNetwork {
@@ -64,7 +62,7 @@ impl From<&Network> for AuxiliaryNetwork {
     fn from(network: &Network) -> Self {
         let mut num_vertices = network.vertices.len();
         let mut fixed_arcs: Vec<(usize, usize)> = vec![];
-        let mut fixed_arcs_memory: Vec<(usize, usize)> = vec![];
+        let mut fixed_arcs_memory: HashMap<usize, usize> = HashMap::new();
         let mut costs = network.costs.clone();
         let mut capacities = network.capacities.clone();
         let mut balances = network.balances.clone();
@@ -74,21 +72,23 @@ impl From<&Network> for AuxiliaryNetwork {
             let (row, col) = create_extension_vertex(&capacities, a.0, a.1);
             capacities.extend(&row, &col);
             capacities.set(a.0, a.1, 0);
-            capacities.set(a.0, num_vertices, usize::MAX); // add an infinite-capacity arc for flow
-                                                           // from a.0 wanting to pass along the
+            capacities.set(num_vertices, a.1, usize::MAX); // fixed arcs have infinite capacity
+            capacities.set(a.0, num_vertices, usize::MAX); // additionally, add an infinite-capacity
+                                                           // arc for flow from a.0 wanting to pass along the
                                                            // new fixed arc (set to cost 0 below)
 
             let (row, col) = create_extension_vertex(&costs, a.0, a.1);
             costs.extend(&row, &col);
             costs.set(a.0, a.1, 0);
-            costs.set(a.0, num_vertices, 0);
+            costs.set(a.0, num_vertices, 0); // prevents calculating cost twice
+                                             // (old and new fixed arc)
 
             balances.iter_mut().for_each(|balance| {
                 balance.extend(&vec![0; num_vertices], &vec![0; num_vertices + 1]);
             });
 
             fixed_arcs.push((num_vertices, a.1));
-            fixed_arcs_memory.push((num_vertices, a.0));
+            fixed_arcs_memory.insert(num_vertices, a.0);
 
             log::debug!(
                 "Extended the network with an auxiliary fixed arc ({}->{}) replacing ({}->{})",
@@ -145,12 +145,10 @@ impl From<&Network> for AuxiliaryNetwork {
         });
 
         AuxiliaryNetwork {
-            num_vertices,
             costs,
             scenarios,
             fixed_arcs,
             fixed_arcs_memory,
-            intermediate_arc_sets: arc_sets,
         }
     }
 }

@@ -108,6 +108,21 @@ impl<T> Matrix<T> {
         let _ = std::mem::replace(self, Matrix::<T>::from_rows(&matrix_unwrapped));
     }
 
+    pub fn shrink(&mut self, amount: usize)
+    where
+        T: Clone,
+    {
+        assert!(self.row_len() > amount);
+        assert!(self.column_len() > amount);
+
+        let mut matrix_unwrapped = self.as_rows();
+        matrix_unwrapped.truncate(self.row_len() - amount);
+        for row in &mut matrix_unwrapped {
+            row.truncate(self.column_len() - amount);
+        }
+        let _ = std::mem::replace(self, Matrix::<T>::from_rows(&matrix_unwrapped));
+    }
+
     pub fn as_rows(&self) -> Vec<Vec<T>>
     where
         T: Clone,
@@ -176,6 +191,10 @@ impl Matrix<usize> {
         }
         old - 1
     }
+
+    pub fn sum(&self) -> usize {
+        self.elements().sum()
+    }
 }
 
 #[cfg(test)]
@@ -200,6 +219,16 @@ mod tests {
             Matrix::from_elements(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 3);
 
         original.extend(&row, &column);
+        assert_eq!(expected_result, original);
+    }
+
+    #[test]
+    fn test_shrink() {
+        let mut original: Matrix<usize> =
+            Matrix::from_elements(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 3);
+        let expected_result: Matrix<usize> = Matrix::from_elements(&vec![1, 2, 4, 5], 2, 2);
+
+        original.shrink(1);
         assert_eq!(expected_result, original);
     }
 }

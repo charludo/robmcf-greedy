@@ -4,30 +4,34 @@ mod network;
 mod util;
 use std::time::Instant;
 
-use algorithms::greedy;
 use network::Network;
 use util::setup_logger;
 
 fn main() {
     setup_logger();
 
-    let start_creation = Instant::now();
     let mut n = Network::from_file("network.json");
-    let elapsed_creation = start_creation.elapsed();
+    n.validate_network();
 
-    let start_greedy = Instant::now();
-    greedy(n.auxiliary_network.as_mut().unwrap());
-    let elapsed_greedy = start_greedy.elapsed();
+    let start_preprocess = Instant::now();
+    n.preprocess();
+    let elapsed_preprocess = start_preprocess.elapsed();
+
+    let start_solve = Instant::now();
+    n.solve();
+    let elapsed_solve = start_solve.elapsed();
 
     println!("{}", n);
+    n.validate_solution();
+
     println!(
         "Creating the network took {}s and {}ms.",
-        elapsed_creation.as_secs(),
-        elapsed_creation.subsec_millis()
+        elapsed_preprocess.as_secs(),
+        elapsed_preprocess.subsec_millis()
     );
     println!(
         "Finding a greedy solution took {}s and {}ms.",
-        elapsed_greedy.as_secs(),
-        elapsed_greedy.subsec_millis()
+        elapsed_solve.as_secs(),
+        elapsed_solve.subsec_millis()
     );
 }
