@@ -122,10 +122,7 @@ impl Network {
             );
         }
 
-        for (i, balance) in self.balances.iter().enumerate() {
-            if balance.sum() != arc_loads[i].sum() {
-                log::error!("Scenario {} has a total supply of {}, but its solution has a total arc load of {}.", i + 1, balance.sum(), arc_loads[i].sum());
-            }
+        for (i, _) in self.balances.iter().enumerate() {
             for (s, t) in self
                 .capacities
                 .indices()
