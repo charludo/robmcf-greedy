@@ -60,12 +60,10 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
             scenario.b_tuples_free = b_tuples;
 
             network.fixed_arcs.iter().for_each(|fixed_arc| {
-                let consistent_flow_to_move = if exists_free_supply {
-                    *consistent_flows_to_move.get(fixed_arc).unwrap()
-                } else {
-                    let inconsistent_flow = scenario.waiting_at(fixed_arc);
-                    scenario.slack += inconsistent_flow;
-                    inconsistent_flow
+                let mut consistent_flow_to_move = *consistent_flows_to_move.get(fixed_arc).unwrap();
+                if consistent_flow_to_move == 0 && !exists_free_supply {
+                    consistent_flow_to_move = scenario.waiting_at(fixed_arc);
+                    scenario.slack += consistent_flow_to_move;
                 };
 
                 if consistent_flow_to_move == 0 {

@@ -28,7 +28,7 @@ impl AuxiliaryNetwork {
                 let _ = max_flow_values.insert(
                     *fixed_arc,
                     *std::cmp::min(
-                        max_flow_values.get(fixed_arc).unwrap_or(&0),
+                        max_flow_values.get(fixed_arc).unwrap_or(&usize::MAX),
                         &scenario.waiting_at(fixed_arc),
                     ),
                 );

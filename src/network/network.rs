@@ -75,7 +75,7 @@ impl Network {
             }
 
             if total_capacity < matrix.sum() {
-                panic!("No feasible soution exists: balance {} has higher supply than the network has capacities.", i+1);
+                panic!("No feasible solution exists: balance {} has higher supply than the network has capacities.", i+1);
             }
         }
 
