@@ -88,17 +88,10 @@ impl Scenario {
 impl Display for Scenario {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut str_repr: Vec<String> = vec![];
-        str_repr.push("(".to_string());
-        str_repr.push(format!("{:>6} free supply", self.b_tuples_free.len()));
+        str_repr.push(format!("{} free supply", self.b_tuples_free.len()));
         self.b_tuples_fixed.iter().for_each(|(k, v)| {
-            str_repr.push(format!(
-                "{:>6} supply waiting at ({}, {})",
-                v.len(),
-                k.0,
-                k.1
-            ));
+            str_repr.push(format!("{} supply waiting at ({}, {})", v.len(), k.0, k.1));
         });
-        str_repr.push(")".to_string());
-        write!(f, "{}", str_repr.join("\n"))
+        write!(f, "( {} )", str_repr.join(", "))
     }
 }

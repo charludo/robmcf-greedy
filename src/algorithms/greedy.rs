@@ -1,11 +1,26 @@
+use std::sync::{Arc, Barrier};
+
+use rayon::{
+    iter::{IntoParallelRefMutIterator, ParallelIterator},
+    ThreadPoolBuilder,
+};
+
 use crate::network::AuxiliaryNetwork;
 
 pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
+    let num_threads = network.scenarios.len();
+    let barrier = Arc::new(Barrier::new(num_threads));
+    ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build_global()
+        .unwrap();
+
     while network.exists_free_supply() {
         let global_waiting_at_fixed_arcs = network.waiting();
         let consistent_flows_to_move = network.max_consistent_flows();
+        let barrier_clone = barrier.clone();
 
-        for scenario in network.scenarios.iter_mut() {
+        network.scenarios.par_iter_mut().for_each(|scenario| {
             let scenario_waiting_at_fixed_arcs = scenario.waiting(&network.fixed_arcs);
 
             let mut b_tuples = std::mem::take(&mut scenario.b_tuples_free);
@@ -75,7 +90,9 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                 });
                 scenario.b_tuples_free.extend(consistently_moved_supply)
             });
-        }
+
+            barrier_clone.wait();
+        });
     }
 
     log::debug!(
