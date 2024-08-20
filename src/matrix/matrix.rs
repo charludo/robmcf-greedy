@@ -195,6 +195,17 @@ impl Matrix<usize> {
     pub fn sum(&self) -> usize {
         self.elements().sum()
     }
+
+    pub fn hadamard_product(&self, other: &Matrix<usize>) -> Self {
+        assert!(self.num_rows() == other.num_rows());
+        assert!(self.num_columns() == other.num_columns());
+
+        let mut result_vec: Vec<usize> = vec![];
+        self.indices().for_each(|(s, t)| {
+            result_vec.push(self.get(s, t) * other.get(s, t));
+        });
+        Matrix::from_elements(&result_vec, self.num_rows(), self.num_columns())
+    }
 }
 
 #[cfg(test)]
@@ -230,5 +241,14 @@ mod tests {
 
         original.shrink(1);
         assert_eq!(expected_result, original);
+    }
+
+    #[test]
+    fn test_hadamard_product() {
+        let original: Matrix<usize> = Matrix::from_elements(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 3);
+        let expected_result: Matrix<usize> =
+            Matrix::from_elements(&vec![1, 4, 9, 15, 25, 36, 49, 64, 81], 3, 3);
+
+        assert_eq!(expected_result, original.hadamard_product(&original));
     }
 }

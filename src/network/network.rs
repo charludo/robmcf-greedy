@@ -14,7 +14,7 @@ pub struct Network {
     pub balances: Vec<Matrix<usize>>,
     pub fixed_arcs: Vec<(usize, usize)>,
     #[serde(skip)]
-    pub arc_loads: Solution,
+    pub solution: Option<Solution>,
     #[serde(skip)]
     pub(crate) auxiliary_network: Option<Box<AuxiliaryNetwork>>,
 }
@@ -93,47 +93,49 @@ impl Network {
     pub fn solve(&mut self) {
         log::info!("Attempting to find a feasible robust flow...");
         let auxiliary_network = std::mem::take(&mut self.auxiliary_network);
-        self.arc_loads = match auxiliary_network {
+        self.solution = match auxiliary_network {
             Some(mut aux) => {
                 log::debug!("Found auxiliary network, calling greedy on it...");
                 greedy(&mut aux);
-                Solution::from(&*aux)
+                self.auxiliary_network = Some(aux);
+                Some(Solution::from(&*self))
             }
             None => {
                 log::error!("No auxiliary network found. Forgot to preprocess?");
-                Solution::default()
+                self.auxiliary_network = auxiliary_network;
+                None
             }
         }
     }
 
     pub fn validate_solution(&self) {
-        if self.arc_loads.get().is_none() {
-            log::error!("Solution is empty. Forgot to solve?");
-            return;
-        }
-        log::info!("Assessing validity of found solution...");
+        match &self.solution {
+            None => log::error!("Solution is empty. Forgot to solve?"),
+            Some(solution) => {
+                log::info!("Assessing validity of found solution...");
 
-        let arc_loads = self.arc_loads.get().unwrap();
-        if arc_loads.len() != self.balances.len() {
-            log::error!(
-                "Found {} scenario solutions, but expected {}.",
-                arc_loads.len(),
-                self.balances.len()
-            );
-        }
-
-        for (i, _) in self.balances.iter().enumerate() {
-            for (s, t) in self
-                .capacities
-                .indices()
-                .filter(|(s, t)| s != t && !self.fixed_arcs.contains(&(*s, *t)))
-            {
-                if self.capacities.get(s, t) < arc_loads[i].get(s, t) {
-                    log::error!("Scenario {} places an arc load of {} on arc ({}->{}), but this arc only has capacity {}.", i+1, arc_loads[i].get(s, t), self.vertices[s], self.vertices[t], self.capacities.get(s, t));
+                if solution.arc_loads.len() != self.balances.len() {
+                    log::error!(
+                        "Found {} scenario solutions, but expected {}.",
+                        solution.arc_loads.len(),
+                        self.balances.len()
+                    );
                 }
+
+                for (i, _) in self.balances.iter().enumerate() {
+                    for (s, t) in self
+                        .capacities
+                        .indices()
+                        .filter(|(s, t)| s != t && !self.fixed_arcs.contains(&(*s, *t)))
+                    {
+                        if self.capacities.get(s, t) < solution.arc_loads[i].get(s, t) {
+                            log::error!("Scenario {} places an arc load of {} on arc ({}->{}), but this arc only has capacity {}.", i+1, solution.arc_loads[i].get(s, t), self.vertices[s], self.vertices[t], self.capacities.get(s, t));
+                        }
+                    }
+                }
+                log::info!("Validity check complete.");
             }
         }
-        log::info!("Validity check complete.");
     }
 }
 
@@ -158,7 +160,10 @@ impl Display for Network {
                 .collect::<Vec<String>>()
                 .join(", ")
         ));
-        string_repr.push(format!("{}", self.arc_loads));
+        string_repr.push(match &self.solution {
+            Some(solution) => format!("{}", solution),
+            None => "Solution has not benn calculated yet.".to_string(),
+        });
         write!(f, "{}", string_repr.join("\n"))
     }
 }
