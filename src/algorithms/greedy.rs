@@ -7,50 +7,37 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
         for scenario in network.scenarios.iter_mut() {
             let scenario_waiting_at_fixed_arcs = scenario.waiting(&network.fixed_arcs);
 
-            scenario.b_tuples_free.retain_mut(|b_t| {
-                let (can_take_fixed_arc, fixed_arc) = b_t.closest_fixed_arc();
-                let mut next_vertex = *b_t.successor_map.get(b_t.s, b_t.t);
-                if can_take_fixed_arc {
-                    let relative_draw = global_waiting_at_fixed_arcs.get(&fixed_arc).unwrap()
-                        - scenario_waiting_at_fixed_arcs.get(&fixed_arc).unwrap();
-                    let cost_via_direct_path = b_t.distance_map.get(b_t.s, b_t.t);
-                    let cost_via_fixed_arc = b_t.distance_map.get(b_t.s, fixed_arc.0)
-                        + network.costs.get(fixed_arc.0, fixed_arc.1)
-                        + b_t.distance_map.get(fixed_arc.1, b_t.t);
-
-                    if *cost_via_direct_path > cost_via_fixed_arc - relative_draw {
-                        next_vertex = *b_t.successor_map.get(b_t.s, b_t.t);
-                    }
-                }
-                log::debug!(
-                    "Moving supply with destination {} via: ({}->{})",
-                    b_t.t,
-                    b_t.s,
-                    next_vertex
+            let mut b_tuples = std::mem::take(&mut scenario.b_tuples_free);
+            b_tuples.retain_mut(|b_tuple| {
+                let (next_vertex, fixed_arc) = b_tuple.get_next_vertex(
+                    &global_waiting_at_fixed_arcs,
+                    &scenario_waiting_at_fixed_arcs,
+                    &network.costs,
                 );
-                let _ = scenario.arc_loads.increment(b_t.s, next_vertex);
-                let remaining_capacity = scenario.capacities.decrement(b_t.s, next_vertex);
-                if remaining_capacity == 0 {
-                    //
+
+                let distance_maps_need_refresh = scenario.use_arc(b_tuple.s, next_vertex);
+                if distance_maps_need_refresh {
+                    scenario.refresh_maps(b_tuple.s, next_vertex, &network.costs);
                 }
 
-                b_t.s = next_vertex;
+                b_tuple.s = next_vertex;
 
-                if b_t.s == b_t.t {
+                if b_tuple.s == b_tuple.t {
                     return false;
                 }
 
-                if can_take_fixed_arc && b_t.s == fixed_arc.0 {
+                if fixed_arc.is_some() {
                     scenario
                         .b_tuples_fixed
-                        .entry(fixed_arc)
+                        .entry(fixed_arc.unwrap())
                         .or_insert_with(Vec::new)
-                        .push(b_t.clone());
+                        .push(b_tuple.clone());
                     return false;
                 }
 
                 true
             });
+            scenario.b_tuples_free = b_tuples;
         }
 
         let consistent_flows_to_move = network.max_consistent_flows();
@@ -69,12 +56,12 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                     .or_insert_with(Vec::new)
                     .drain(0..*consistent_flow_to_move)
                     .collect::<Vec<_>>();
-                consistently_moved_supply.retain_mut(|b_t| {
+                consistently_moved_supply.retain_mut(|b_tuple| {
                     scenario.arc_loads.increment(fixed_arc.0, fixed_arc.1);
                     scenario.capacities.decrement(fixed_arc.0, fixed_arc.1);
-                    b_t.mark_arc_used(&fixed_arc);
-                    b_t.s = fixed_arc.1;
-                    if b_t.s == b_t.t {
+                    b_tuple.mark_arc_used(&fixed_arc);
+                    b_tuple.s = fixed_arc.1;
+                    if b_tuple.s == b_tuple.t {
                         return false;
                     }
 
