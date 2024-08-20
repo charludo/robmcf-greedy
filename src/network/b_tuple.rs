@@ -73,13 +73,6 @@ impl BTuple {
             }
         };
 
-        log::debug!(
-            "Moving supply with destination {} via: ({}->{})",
-            self.t,
-            self.s,
-            next_vertex
-        );
-
         (next_vertex, fixed_arc)
     }
 }

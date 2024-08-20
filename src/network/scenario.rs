@@ -34,13 +34,16 @@ impl Scenario {
         wait_map
     }
 
-    pub(crate) fn use_arc(&mut self, s: usize, t: usize) -> bool {
+    pub(crate) fn use_arc(&mut self, s: usize, t: usize, costs: &Matrix<usize>) {
         let _ = self.arc_loads.increment(s, t);
         let remaining_capacity = self.capacities.decrement(s, t);
-        remaining_capacity == 0
+        if remaining_capacity == 0 {
+            self.refresh_maps(s, t, costs);
+        }
     }
 
     fn refresh_maps_of(&self, b_tuple: &mut BTuple, costs: &Matrix<usize>) {
+        log::info!("BTuple {} needs to refresh its maps.", b_tuple);
         let (distance_map, predecessor_map) = floyd_warshall(
             &self
                 .capacities
@@ -55,10 +58,9 @@ impl Scenario {
 
     pub(crate) fn refresh_maps(&mut self, s: usize, t: usize, costs: &Matrix<usize>) {
         log::debug!(
-            "Arc ({}->{}) has reached its capacity. Refreshing distance- and successor-maps to reflect new capacities:\n{}",
+            "Arc ({}->{}) has reached its capacity. Refreshing distance- and successor-maps.",
             s,
             t,
-            self.capacities
         );
 
         let mut b_tuples_free = std::mem::take(&mut self.b_tuples_free);
