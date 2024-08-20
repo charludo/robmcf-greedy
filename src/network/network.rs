@@ -126,12 +126,17 @@ impl Network {
             if balance.sum() != arc_loads[i].sum() {
                 log::error!("Scenario {} has a total supply of {}, but its solution has a total arc load of {}.", i + 1, balance.sum(), arc_loads[i].sum());
             }
-            for (s, t) in self.capacities.indices().filter(|(s, t)| s != t) {
+            for (s, t) in self
+                .capacities
+                .indices()
+                .filter(|(s, t)| s != t && !self.fixed_arcs.contains(&(*s, *t)))
+            {
                 if self.capacities.get(s, t) < arc_loads[i].get(s, t) {
                     log::error!("Scenario {} places an arc load of {} on arc ({}->{}), but this arc only has capacity {}.", i+1, arc_loads[i].get(s, t), self.vertices[s], self.vertices[t], self.capacities.get(s, t));
                 }
             }
         }
+        log::info!("Validity check complete.");
     }
 }
 

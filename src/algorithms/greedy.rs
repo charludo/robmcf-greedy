@@ -16,6 +16,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
         .unwrap();
 
     while network.exists_supply() {
+        let exists_free_supply = network.exists_free_supply();
         let global_waiting_at_fixed_arcs = network.waiting();
         let consistent_flows_to_move = network.max_consistent_flows();
         let barrier_clone = barrier.clone();
@@ -59,8 +60,15 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
             scenario.b_tuples_free = b_tuples;
 
             network.fixed_arcs.iter().for_each(|fixed_arc| {
-                let consistent_flow_to_move = consistent_flows_to_move.get(fixed_arc).unwrap();
-                if *consistent_flow_to_move == 0 {
+                let consistent_flow_to_move = if exists_free_supply {
+                    *consistent_flows_to_move.get(fixed_arc).unwrap()
+                } else {
+                    let inconsistent_flow = scenario.waiting_at(fixed_arc);
+                    scenario.slack += inconsistent_flow;
+                    inconsistent_flow
+                };
+
+                if consistent_flow_to_move == 0 {
                     return;
                 }
 
@@ -75,7 +83,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                     .b_tuples_fixed
                     .entry(*fixed_arc)
                     .or_default()
-                    .drain(0..*consistent_flow_to_move)
+                    .drain(0..consistent_flow_to_move)
                     .collect::<Vec<_>>();
 
                 consistently_moved_supply.retain_mut(|b_tuple| {

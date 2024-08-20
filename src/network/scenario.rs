@@ -13,6 +13,7 @@ pub(crate) struct Scenario {
     pub(crate) b_tuples_free: Vec<Box<BTuple>>,
     pub(crate) b_tuples_fixed: HashMap<(usize, usize), Vec<Box<BTuple>>>,
     pub(crate) arc_loads: Matrix<usize>,
+    pub(crate) slack: usize,
 }
 
 impl Scenario {

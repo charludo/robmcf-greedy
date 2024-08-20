@@ -60,7 +60,7 @@ impl AuxiliaryNetwork {
     pub(crate) fn exists_fixed_supply(&self) -> bool {
         self.scenarios
             .iter()
-            .map(|s| s.b_tuples_fixed.values().len())
+            .map(|s| s.b_tuples_fixed.values().map(|v| v.len()).sum::<usize>())
             .sum::<usize>()
             != 0
     }
@@ -151,6 +151,7 @@ impl From<&Network> for AuxiliaryNetwork {
                 arc_loads: arc_loads.clone(),
                 b_tuples_free,
                 b_tuples_fixed,
+                slack: 0,
             };
             log::debug!("Generated the following scenario:\n{}", scenario);
             scenarios.push(Box::new(scenario));
