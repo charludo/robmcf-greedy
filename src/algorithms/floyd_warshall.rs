@@ -57,7 +57,7 @@ pub(crate) fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Matrix<usize>
 
     prev.indices().for_each(|(s, t)| {
         if *succ.get(s, t) == usize::MAX {
-            let path = shortest_path(&prev, s, t);
+            let path = shortest_path(prev, s, t);
             for i in 0..path.len() {
                 succ.set(path[i], t, if i + 1 < path.len() { path[i + 1] } else { t });
                 if *succ.get(path[i], t) != usize::MAX {

@@ -103,7 +103,7 @@ impl<T> Matrix<T> {
         let mut matrix_unwrapped = self.as_rows();
         matrix_unwrapped.push(row.clone());
         for i in 0..column.len() {
-            matrix_unwrapped[i].push(column[i].clone());
+            matrix_unwrapped[i].push(column[i]);
         }
         let _ = std::mem::replace(self, Matrix::<T>::from_rows(&matrix_unwrapped));
     }

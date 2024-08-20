@@ -23,11 +23,11 @@ pub(crate) struct AuxiliaryNetwork {
 impl AuxiliaryNetwork {
     pub(crate) fn max_consistent_flows(&self) -> HashMap<(usize, usize), usize> {
         let mut max_flow_values: HashMap<(usize, usize), usize> = HashMap::new();
-        self.fixed_arcs.iter().for_each(|fixed_arc| {
-            self.scenarios.iter().for_each(|scenario| {
+        self.scenarios.iter().for_each(|scenario| {
+            self.fixed_arcs.iter().for_each(|fixed_arc| {
                 let _ = max_flow_values.insert(
                     *fixed_arc,
-                    *std::cmp::max(
+                    *std::cmp::min(
                         max_flow_values.get(fixed_arc).unwrap_or(&0),
                         &scenario.waiting_at(fixed_arc),
                     ),
@@ -55,6 +55,18 @@ impl AuxiliaryNetwork {
             .map(|s| s.b_tuples_free.len())
             .sum::<usize>()
             != 0
+    }
+
+    pub(crate) fn exists_fixed_supply(&self) -> bool {
+        self.scenarios
+            .iter()
+            .map(|s| s.b_tuples_fixed.values().len())
+            .sum::<usize>()
+            != 0
+    }
+
+    pub(crate) fn exists_supply(&self) -> bool {
+        self.exists_free_supply() || self.exists_fixed_supply()
     }
 }
 

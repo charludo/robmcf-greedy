@@ -15,7 +15,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
         .build_global()
         .unwrap();
 
-    while network.exists_free_supply() {
+    while network.exists_supply() {
         let global_waiting_at_fixed_arcs = network.waiting();
         let consistent_flows_to_move = network.max_consistent_flows();
         let barrier_clone = barrier.clone();
@@ -45,11 +45,11 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                     return false;
                 }
 
-                if fixed_arc.is_some() {
+                if let Some(fixed_arc) = fixed_arc {
                     scenario
                         .b_tuples_fixed
-                        .entry(fixed_arc.unwrap())
-                        .or_insert_with(Vec::new)
+                        .entry(fixed_arc)
+                        .or_default()
                         .push(b_tuple.clone());
                     return false;
                 }
@@ -74,13 +74,13 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                 let mut consistently_moved_supply = scenario
                     .b_tuples_fixed
                     .entry(*fixed_arc)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .drain(0..*consistent_flow_to_move)
                     .collect::<Vec<_>>();
 
                 consistently_moved_supply.retain_mut(|b_tuple| {
                     scenario.use_arc(fixed_arc.0, fixed_arc.1, &network.costs);
-                    b_tuple.mark_arc_used(&fixed_arc);
+                    b_tuple.mark_arc_used(fixed_arc);
                     b_tuple.s = fixed_arc.1;
                     if b_tuple.s == b_tuple.t {
                         return false;
@@ -94,14 +94,4 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
             barrier_clone.wait();
         });
     }
-
-    log::debug!(
-        "Greedy found the following solution:\n{}",
-        network
-            .scenarios
-            .iter()
-            .map(|scenario| format!("{}", scenario.arc_loads))
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
 }
