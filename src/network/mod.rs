@@ -1,6 +1,7 @@
 mod auxiliary_network;
 mod b_tuple;
 mod network;
+mod network_state;
 mod preprocessing;
 mod scenario;
 mod solution;

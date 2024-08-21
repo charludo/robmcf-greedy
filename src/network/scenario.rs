@@ -36,6 +36,7 @@ impl Scenario {
     }
 
     pub(crate) fn use_arc(&mut self, s: usize, t: usize, costs: &Matrix<usize>) {
+        log::warn!("Scenario has {} free BTuples.", self.b_tuples_free.len());
         let _ = self.arc_loads.increment(s, t);
         let remaining_capacity = self.capacities.decrement(s, t);
         if remaining_capacity == 0 {
