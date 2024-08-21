@@ -17,24 +17,25 @@ impl From<&Network> for Solution {
         let mut slack: Vec<usize> = Vec::new();
         let mut costs: Vec<usize> = Vec::new();
         if let Some(auxiliary_network) = &network.auxiliary_network {
-            auxiliary_network.scenarios.iter().for_each(|scenario| {
-                let mut scenario_arc_loads = scenario.arc_loads.clone();
-                auxiliary_network.fixed_arcs.iter().for_each(|fixed_arc| {
-                    let original_arc_start = auxiliary_network
-                        .fixed_arcs_memory
-                        .get(&fixed_arc.0)
-                        .unwrap();
-                    scenario_arc_loads.set(
-                        *original_arc_start,
-                        fixed_arc.1,
-                        *scenario_arc_loads.get(fixed_arc.0, fixed_arc.1),
-                    );
+            auxiliary_network
+                .network_states
+                .iter()
+                .for_each(|scenario| {
+                    let mut scenario_arc_loads = scenario.arc_loads.clone();
+                    auxiliary_network.fixed_arcs.iter().for_each(|fixed_arc| {
+                        let original_arc_start =
+                            auxiliary_network.fixed_arcs_memory.get(&fixed_arc).unwrap();
+                        scenario_arc_loads.set(
+                            *original_arc_start,
+                            *fixed_arc,
+                            *scenario_arc_loads.get(*original_arc_start, *fixed_arc),
+                        );
+                    });
+                    scenario_arc_loads.shrink(auxiliary_network.fixed_arcs.len());
+                    slack.push(scenario.slack);
+                    costs.push(scenario_arc_loads.hadamard_product(&network.costs).sum());
+                    arc_loads.push(scenario_arc_loads);
                 });
-                scenario_arc_loads.shrink(auxiliary_network.fixed_arcs.len());
-                slack.push(scenario.slack);
-                costs.push(scenario_arc_loads.hadamard_product(&network.costs).sum());
-                arc_loads.push(scenario_arc_loads);
-            });
         };
         Solution {
             arc_loads,
@@ -52,10 +53,7 @@ impl Display for Solution {
             (0..self.arc_loads.len())
                 .map(|i| format!(
                     "Scenario {}, with cost {} and {} slack:\n{}",
-                    i + 1,
-                    self.costs[i],
-                    self.slack[i],
-                    self.arc_loads[i]
+                    i, self.costs[i], self.slack[i], self.arc_loads[i]
                 ))
                 .collect::<Vec<String>>()
                 .join("\n")

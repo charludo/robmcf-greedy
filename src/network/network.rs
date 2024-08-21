@@ -44,6 +44,17 @@ impl Network {
             }
         }
 
+        for (i, row) in self.capacities.as_rows().iter().enumerate() {
+            if row.iter().sum::<usize>() == 0 {
+                panic!("Vertex {} is a dead end", self.vertices[i]);
+            }
+        }
+        for (i, column) in self.capacities.as_columns().iter().enumerate() {
+            if column.iter().sum::<usize>() == 0 {
+                panic!("Vertex {} is unreachable", self.vertices[i]);
+            }
+        }
+
         let total_capacity = self.capacities.sum();
         for (i, matrix) in self.balances.iter().enumerate() {
             if matrix.num_rows() != len || matrix.num_columns() != len {
@@ -69,7 +80,7 @@ impl Network {
                         self.vertices[j],
                         row.into_iter().sum::<usize>(),
                         as_columns[j].clone().into_iter().sum::<usize>(),
-                        i + 1
+                        i
                     );
                 }
             }

@@ -5,18 +5,19 @@ use crate::{
     matrix::Matrix,
 };
 
+#[derive(Debug)]
 pub(super) struct NetworkState {
-    intermediate_arc_sets: Matrix<Matrix<bool>>,
-    fixed_arcs: Matrix<Vec<usize>>,
+    pub(super) intermediate_arc_sets: Matrix<Matrix<bool>>,
+    pub(super) fixed_arcs: Matrix<Vec<usize>>,
 
-    distances: Matrix<Matrix<usize>>,
-    successors: Matrix<Matrix<usize>>,
+    pub(super) distances: Matrix<Matrix<usize>>,
+    pub(super) successors: Matrix<Matrix<usize>>,
 
-    capacities: Matrix<usize>,
-    costs: Arc<Matrix<usize>>,
+    pub(super) capacities: Matrix<usize>,
+    pub(super) costs: Arc<Matrix<usize>>,
 
-    arc_loads: Matrix<usize>,
-    slack: usize,
+    pub(super) arc_loads: Matrix<usize>,
+    pub(super) slack: usize,
 }
 
 impl NetworkState {

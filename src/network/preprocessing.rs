@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use crate::matrix::Matrix;
 
@@ -20,27 +20,13 @@ pub(super) fn create_extension_vertex(
 
 pub(super) fn generate_b_tuples(
     supply: &Matrix<usize>,
-    intermediate_arc_sets: &Matrix<Arc<Matrix<bool>>>,
-    fixed_arcs: &Vec<(usize, usize)>,
-    distance_map: &Matrix<usize>,
-    successor_map: &Matrix<usize>,
-    costs: &Matrix<usize>,
-) -> (Vec<Box<BTuple>>, HashMap<(usize, usize), Vec<Box<BTuple>>>) {
+) -> (Vec<Box<BTuple>>, HashMap<usize, Vec<Box<BTuple>>>) {
     let mut free: Vec<Box<BTuple>> = vec![];
-    let mut fixed: HashMap<(usize, usize), Vec<Box<BTuple>>> = HashMap::new();
     supply
         .indices()
         .filter(|(s, t)| s != t && *supply.get(*s, *t) > 0)
         .for_each(|(s, t)| {
-            let mut b_tuple = Box::new(BTuple {
-                s,
-                t,
-                intermediate_arc_set: Arc::clone(intermediate_arc_sets.get(s, t)),
-                distance_map: distance_map.clone(),
-                successor_map: successor_map.clone(),
-                fixed_arc_distances: HashMap::new(),
-            });
-            b_tuple.generate_fixed_arc_distances(&fixed_arcs, &costs);
+            let b_tuple = Box::new(BTuple { origin: s, s, t });
 
             log::debug!(
                 "Generated {} BTuples for {} -> {}:\n{}",
@@ -50,25 +36,21 @@ pub(super) fn generate_b_tuples(
                 b_tuple,
             );
 
-            // we are working with single units of supply in order to prevent dead ends
+            // we are working with single units of supply in order to prevent dead ends,
+            // and initially, all supply is free
             let supply_at_s_t = vec![b_tuple; *supply.get(s, t)];
-            match fixed_arcs.iter().position(|&(a, _)| a == s) {
-                Some(_) => {
-                    let _ = fixed.insert((s, t), supply_at_s_t);
-                }
-                None => free.extend(supply_at_s_t),
-            };
+            free.extend(supply_at_s_t);
         });
 
-    (free, fixed)
+    (free, HashMap::new())
 }
 
-pub(super) fn intermediate_arc_sets(
+pub(super) fn generate_intermediate_arc_sets(
     dist: &Matrix<usize>,
     costs: &Matrix<usize>,
     capacities: &Matrix<usize>,
     delta_fn: fn(usize) -> usize,
-) -> Matrix<Arc<Matrix<bool>>> {
+) -> Matrix<Matrix<bool>> {
     let m = dist.num_rows();
     let mut arc_sets = Matrix::filled_with(Matrix::filled_with(false, m, m), m, m);
 
@@ -105,11 +87,7 @@ pub(super) fn intermediate_arc_sets(
             arc_set
         );
     }
-    Matrix::from_elements(
-        &arc_sets.elements().map(|x| Arc::new(x.clone())).collect(),
-        m,
-        m,
-    )
+    Matrix::from_elements(&arc_sets.elements().map(|x| x.clone()).collect(), m, m)
 }
 
 fn delta(delta_fn: fn(usize) -> usize, dist: &Matrix<usize>, s: usize, t: usize) -> usize {
@@ -141,28 +119,27 @@ mod tests {
     }
 
     #[test]
-    fn test_intermediate_arc_sets() {
+    fn test_generate_intermediate_arc_sets() {
         let (distance_map, costs, capacities) = setup();
         let expected_result_0_1: Matrix<bool> = Matrix::from_elements(
             &vec![false, false, true, false, false, false, false, true, false],
             3,
             3,
         );
-        let actual_result = intermediate_arc_sets(&distance_map, &costs, &capacities, |x| 2 * x);
+        let actual_result =
+            generate_intermediate_arc_sets(&distance_map, &costs, &capacities, |x| 2 * x);
         let actual_result_0_1 = actual_result.get(0, 1).clone();
 
-        assert_eq!(expected_result_0_1, *actual_result_0_1);
+        assert_eq!(expected_result_0_1, actual_result_0_1);
     }
 
     #[test]
     fn test_generate_b_tuples() {
-        let (distance_map, costs, capacities) = setup();
-        let arc_sets = intermediate_arc_sets(&distance_map, &costs, &capacities, |x| 2 * x); // yeah I'm not doing this by hand.
         let supply: Matrix<usize> = Matrix::from_elements(&vec![0, 2, 1, 1, 0, 1, 0, 6, 0], 3, 3);
 
-        let actual_result = generate_b_tuples(&supply, &arc_sets, &vec![(2, 1)]);
+        let actual_result = generate_b_tuples(&supply);
 
-        assert_eq!(5, actual_result.0.len());
-        assert_eq!(6, actual_result.1.get(&(2, 1)).unwrap().len());
+        assert_eq!(11, actual_result.0.len());
+        assert!(actual_result.1.is_empty());
     }
 }
