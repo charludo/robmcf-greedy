@@ -11,18 +11,21 @@ pub(crate) struct Scenario {
 
 impl Scenario {
     pub(crate) fn waiting_at(&self, fixed_arc: usize) -> usize {
-        match self.b_tuples_fixed.get(&fixed_arc) {
-            Some(vec) => vec.len(),
-            None => 0,
-        }
+        self.b_tuples_fixed.get(&fixed_arc).unwrap_or(&vec![]).len()
     }
 
-    pub(crate) fn waiting(&self, fixed_arcs: &Vec<usize>) -> HashMap<usize, usize> {
-        let mut wait_map: HashMap<usize, usize> = HashMap::new();
-        fixed_arcs.iter().for_each(|fixed_arc| {
-            wait_map.insert(*fixed_arc, self.waiting_at(*fixed_arc));
-        });
-        wait_map
+    pub(crate) fn get_relative_draws(
+        &self,
+        global_waiting: &HashMap<usize, usize>,
+    ) -> HashMap<usize, i32> {
+        let mut relative_draws = HashMap::new();
+        for &key in self.b_tuples_fixed.keys().chain(global_waiting.keys()) {
+            let scenario_draw = self.waiting_at(key);
+            let global_draw = *global_waiting.get(&key).unwrap_or(&0);
+            let relative_draw = (global_draw as i32) - (scenario_draw as i32);
+            relative_draws.insert(key, relative_draw);
+        }
+        relative_draws
     }
 }
 

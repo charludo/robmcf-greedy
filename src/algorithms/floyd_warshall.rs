@@ -13,36 +13,26 @@ pub(crate) fn floyd_warshall(
         .indices()
         .filter(|(x, y)| *capacities.get(*x, *y) > 0)
     {
-        log::trace!("dist {} -> {} is {}", x, y, costs.get(x, y));
         dist.set(x, y, *costs.get(x, y));
         prev.set(x, y, Some(x));
-    }
-    for v in 0..capacities.num_rows() {
-        log::trace!("pred. of {} is {} with distance 0", v, v);
-        dist.set(v, v, 0);
-        prev.set(v, v, Some(v));
     }
     for k in 0..capacities.num_rows() {
         for i in 0..capacities.num_rows() {
             for j in 0..capacities.num_rows() {
-                if *dist.get(i, k) < usize::MAX
-                    && *dist.get(k, j) < usize::MAX
-                    && *dist.get(i, j) > dist.get(i, k) + dist.get(k, j)
-                {
-                    log::trace!(
-                        "new dist {} -> {} is {}",
-                        i,
-                        j,
-                        dist.get(i, k) + dist.get(k, j)
-                    );
-                    dist.set(i, j, dist.get(i, k) + dist.get(k, j));
+                let new_dist = dist.get(i, k).saturating_add(*dist.get(k, j));
+                if *dist.get(i, j) > new_dist {
+                    dist.set(i, j, new_dist);
                     prev.set(i, j, *prev.get(k, j));
                 }
             }
         }
     }
+    for v in 0..capacities.num_rows() {
+        dist.set(v, v, usize::MAX);
+        prev.set(v, v, None);
+    }
 
-    log::debug!(
+    log::trace!(
         "Floyd-Warshall resulted in distance map\n{}\nand predecessor map\n{}",
         dist,
         prev
@@ -67,7 +57,7 @@ pub(crate) fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Matrix<usize>
         }
     });
 
-    log::debug!(
+    log::trace!(
         "Predecessor map has been inverted into the following succcessor map:\n{}",
         succ
     );
@@ -103,25 +93,31 @@ mod tests {
         let capacities: Matrix<usize> =
             Matrix::from_elements(&vec![0, 0, 2, 1, 0, 2, 3, 2, 0], 3, 3);
         let costs: Matrix<usize> = Matrix::from_elements(&vec![0, 0, 3, 4, 0, 6, 7, 8, 0], 3, 3);
-        let distance_map: Matrix<usize> =
-            Matrix::from_elements(&vec![0, 11, 3, 4, 0, 6, 7, 8, 0], 3, 3);
+        let distance_map: Matrix<usize> = Matrix::from_elements(
+            &vec![usize::MAX, 11, 3, 4, usize::MAX, 6, 7, 8, usize::MAX],
+            3,
+            3,
+        );
         let predecessor_map: Matrix<Option<usize>> = Matrix::from_elements(
             &vec![
-                Some(0),
+                None,
                 Some(2),
                 Some(0),
                 Some(1),
+                None,
                 Some(1),
-                Some(1),
                 Some(2),
                 Some(2),
-                Some(2),
+                None,
             ],
             3,
             3,
         );
-        let successor_map: Matrix<usize> =
-            Matrix::from_elements(&vec![0, 2, 2, 0, 1, 2, 0, 1, 2], 3, 3);
+        let successor_map: Matrix<usize> = Matrix::from_elements(
+            &vec![usize::MAX, 2, 2, 0, usize::MAX, 2, 0, 1, usize::MAX],
+            3,
+            3,
+        );
 
         (
             capacities,
@@ -153,7 +149,7 @@ mod tests {
         let (_, _, _, predecessor_map, _) = setup();
         let path = shortest_path(&predecessor_map, 0, 0);
 
-        assert_eq!(vec![0], path);
+        assert_eq!(Vec::<usize>::new(), path);
     }
 
     #[test]

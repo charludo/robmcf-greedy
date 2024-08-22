@@ -247,7 +247,7 @@ mod tests {
     fn test_hadamard_product() {
         let original: Matrix<usize> = Matrix::from_elements(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 3);
         let expected_result: Matrix<usize> =
-            Matrix::from_elements(&vec![1, 4, 9, 15, 25, 36, 49, 64, 81], 3, 3);
+            Matrix::from_elements(&vec![1, 4, 9, 16, 25, 36, 49, 64, 81], 3, 3);
 
         assert_eq!(expected_result, original.hadamard_product(&original));
     }

@@ -23,12 +23,12 @@ impl From<&Network> for Solution {
                 .for_each(|scenario| {
                     let mut scenario_arc_loads = scenario.arc_loads.clone();
                     auxiliary_network.fixed_arcs.iter().for_each(|fixed_arc| {
-                        let original_arc_start =
+                        let original_arc =
                             auxiliary_network.fixed_arcs_memory.get(&fixed_arc).unwrap();
                         scenario_arc_loads.set(
-                            *original_arc_start,
-                            *fixed_arc,
-                            *scenario_arc_loads.get(*original_arc_start, *fixed_arc),
+                            original_arc.0,
+                            original_arc.1,
+                            *scenario_arc_loads.get(*fixed_arc, original_arc.1),
                         );
                     });
                     scenario_arc_loads.shrink(auxiliary_network.fixed_arcs.len());

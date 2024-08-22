@@ -6,31 +6,33 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(super) struct NetworkState {
-    pub(super) intermediate_arc_sets: Matrix<Matrix<bool>>,
-    pub(super) fixed_arcs: Matrix<Vec<usize>>,
+pub(crate) struct NetworkState {
+    pub(crate) intermediate_arc_sets: Matrix<Matrix<bool>>,
+    pub(crate) fixed_arcs: Matrix<Vec<usize>>,
 
-    pub(super) distances: Matrix<Matrix<usize>>,
-    pub(super) successors: Matrix<Matrix<usize>>,
+    pub(crate) distances: Matrix<Matrix<usize>>,
+    pub(crate) successors: Matrix<Matrix<usize>>,
 
-    pub(super) capacities: Matrix<usize>,
-    pub(super) costs: Arc<Matrix<usize>>,
+    pub(crate) capacities: Matrix<usize>,
+    pub(crate) costs: Arc<Matrix<usize>>,
 
-    pub(super) arc_loads: Matrix<usize>,
-    pub(super) slack: usize,
+    pub(crate) arc_loads: Matrix<usize>,
+    pub(crate) slack: usize,
 }
 
 impl NetworkState {
     fn refresh(&mut self, s: usize, t: usize) {
+        log::info!("Arc ({s}->{t}) has reached its capacity. Refreshing the scenario.");
         let affected_indices = self
             .intermediate_arc_sets
             .indices()
             .filter(|(origin, dest)| *self.intermediate_arc_sets.get(*origin, *dest).get(s, t));
         affected_indices.for_each(|(origin, dest)| {
+            log::debug!("Refreshing for ({origin}, {dest})");
             let (distance_map, predecessor_map) = floyd_warshall(
                 &self
                     .capacities
-                    .apply_mask(self.intermediate_arc_sets.get(origin, dest), usize::MAX),
+                    .apply_mask(self.intermediate_arc_sets.get(origin, dest), 0),
                 &self.costs,
             );
             let successor_map = invert_predecessors(&predecessor_map);
@@ -40,16 +42,7 @@ impl NetworkState {
         });
     }
 
-    fn use_arc(&mut self, origin: usize, dest: usize, s: usize, t: usize) {
-        // Set the intermediate_arc_set to false for EVERY used arc.
-        // This prevents loop.
-        // We do NOT need to refresh any maps just because of this:
-        // - other (s, t) pairs are not affected
-        // - any shortest path is by definition acyclic
-        // ...that being said, removing the arc from fixed_arcs makes to quicken future lookups
-        self.intermediate_arc_sets
-            .get_mut(origin, dest)
-            .set(s, t, false);
+    pub(crate) fn use_arc(&mut self, s: usize, t: usize) {
         let _ = self.arc_loads.increment(s, t);
         let remaining_capacity = self.capacities.decrement(s, t);
         if remaining_capacity == 0 {
@@ -57,19 +50,9 @@ impl NetworkState {
         }
     }
 
-    fn use_fixed_arc(&mut self, origin: usize, dest: usize, s: usize, t: usize) {
-        let fixed_arcs = self.fixed_arcs.get_mut(origin, dest);
-        if let Some(index) = fixed_arcs.iter().find(|v| **v == s) {
-            let _ = fixed_arcs.remove(*index);
-        } else {
-            log::error!("Attempted to use fixed arc ({s}->{t}), but it has already been used!");
-        }
-        self.use_arc(origin, dest, s, t);
-    }
-
     fn get_closest_fixed_arc(
         &self,
-        relative_draws: &HashMap<usize, usize>,
+        relative_draws: &HashMap<usize, i32>,
         origin: usize,
         s: usize,
         dest: usize,
@@ -81,15 +64,15 @@ impl NetworkState {
             .get(origin, dest)
             .iter()
             .min_by_key(|fixed_arc| {
-                *distances.get(s, **fixed_arc) + *distances.get(**fixed_arc, dest)
+                (*distances.get(s, **fixed_arc) as i32) + (*distances.get(**fixed_arc, dest) as i32)
                     - *relative_draws.get(fixed_arc).unwrap_or(&0)
             })
             .copied()
     }
 
-    fn get_next_vertex(
+    pub(crate) fn get_next_vertex(
         &self,
-        relative_draws: &HashMap<usize, usize>,
+        relative_draws: &HashMap<usize, i32>,
         origin: usize,
         s: usize,
         dest: usize,
@@ -97,18 +80,22 @@ impl NetworkState {
         let successors = self.successors.get(origin, dest);
         let next_vertex_via_direct_path = *successors.get(s, dest);
         let closest_fixed_arc = match self.get_closest_fixed_arc(relative_draws, origin, s, dest) {
-            None => return next_vertex_via_direct_path,
+            None => return next_vertex_via_direct_path, // is this is usize::MAX, then no feasible flow exists anyways!
             Some(fixed_arc) => fixed_arc,
         };
         let next_vertex_via_fixed_arc = *successors.get(s, closest_fixed_arc);
+        if next_vertex_via_fixed_arc == usize::MAX {
+            return next_vertex_via_direct_path;
+        }
 
         let distances = self.distances.get(origin, dest);
         let cost_via_direct_path = *distances.get(s, dest);
-        let cost_via_fixed_arc =
-            *distances.get(s, closest_fixed_arc) + distances.get(closest_fixed_arc, dest);
+        let cost_via_fixed_arc = distances
+            .get(s, closest_fixed_arc)
+            .saturating_add(*distances.get(closest_fixed_arc, dest));
 
-        if cost_via_direct_path
-            < cost_via_fixed_arc - *relative_draws.get(&closest_fixed_arc).unwrap_or(&0)
+        if (cost_via_direct_path as i32)
+            < (cost_via_fixed_arc as i32) - *relative_draws.get(&closest_fixed_arc).unwrap_or(&0)
         {
             next_vertex_via_direct_path
         } else {

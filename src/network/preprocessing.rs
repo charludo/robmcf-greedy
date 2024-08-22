@@ -4,20 +4,6 @@ use crate::matrix::Matrix;
 
 use super::b_tuple::BTuple;
 
-pub(super) fn create_extension_vertex(
-    matrix: &Matrix<usize>,
-    s: usize,
-    t: usize,
-) -> (Vec<usize>, Vec<usize>) {
-    let mut new_row: Vec<usize> = vec![0; matrix.row_len()];
-    new_row[t] = *matrix.get(s, t);
-
-    let mut new_column = matrix.as_columns()[s].clone();
-    new_column.push(0);
-
-    (new_row, new_column)
-}
-
 pub(super) fn generate_b_tuples(
     supply: &Matrix<usize>,
 ) -> (Vec<Box<BTuple>>, HashMap<usize, Vec<Box<BTuple>>>) {
@@ -64,17 +50,13 @@ pub(super) fn generate_intermediate_arc_sets(
         for (x, y) in dist.indices() {
             // ignores arcs that lead to s or away from t, as well as arcs with no capacity (i.e.
             // non-existent arcs) and unreachable arcs
-            if x == y
-                || y == s
-                || x == t
-                || *capacities.get(x, y) == 0
-                || *dist.get(s, x) == usize::MAX
-                || *dist.get(x, y) == usize::MAX
-                || *dist.get(y, t) == usize::MAX
-            {
+            if x == y || y == s || x == t || *capacities.get(x, y) == 0 {
                 continue;
             }
-            let detour_length = dist.get(s, x) + costs.get(x, y) + dist.get(y, t);
+            let detour_length = dist
+                .get(s, x)
+                .saturating_add(*costs.get(x, y))
+                .saturating_add(*dist.get(y, t));
             if detour_length <= max_path_length {
                 arc_set.set(x, y, true);
             }
@@ -106,16 +88,6 @@ mod tests {
             Matrix::from_elements(&vec![0, 1, 1, 1, 0, 0, 0, 1, 0], 3, 3);
 
         (distance_map, costs, capacities)
-    }
-
-    #[test]
-    fn test_create_extension_vertex() {
-        let original: Matrix<usize> = Matrix::from_elements(&vec![1, 2, 3, 4], 2, 2);
-        let fixed_arc: (usize, usize) = (1, 0);
-
-        let expected_result = (vec![3, 0], vec![2, 4, 0]);
-        let actual_result = create_extension_vertex(&original, fixed_arc.0, fixed_arc.1);
-        assert_eq!(expected_result, actual_result);
     }
 
     #[test]

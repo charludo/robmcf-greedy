@@ -3,7 +3,6 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
     matrix::Matrix,
-    network::preprocessing::create_extension_vertex,
 };
 
 use super::{
@@ -15,9 +14,8 @@ use super::{
 
 #[derive(Debug)]
 pub(crate) struct AuxiliaryNetwork {
-    pub(crate) costs: Matrix<usize>,
     pub(crate) fixed_arcs: Vec<usize>,
-    pub(crate) fixed_arcs_memory: HashMap<usize, usize>,
+    pub(crate) fixed_arcs_memory: HashMap<usize, (usize, usize)>,
 
     pub(crate) scenarios: Vec<Box<Scenario>>,
     pub(crate) network_states: Vec<Box<NetworkState>>,
@@ -71,13 +69,29 @@ impl AuxiliaryNetwork {
     pub(crate) fn exists_supply(&self) -> bool {
         self.exists_free_supply() || self.exists_fixed_supply()
     }
+
+    pub(crate) fn fixed_arc_repr(&self, fixed_vertex: usize) -> String {
+        let fixed_arc = self.fixed_arcs_memory.get(&fixed_vertex);
+        match fixed_arc {
+            Some(arc) => format!("({}->{})", arc.0, arc.1),
+            None => format!("unknown fixed arc eminating from {}", fixed_vertex),
+        }
+    }
+
+    pub(crate) fn get_fixed_arc_terminal(&self, fixed_vertex: usize) -> usize {
+        let fixed_arc = self.fixed_arcs_memory.get(&fixed_vertex);
+        match fixed_arc {
+            Some(arc) => arc.1,
+            None => panic!("Encountered a fixed arc which exists only in the fixed arc memory!"),
+        }
+    }
 }
 
 impl From<&Network> for AuxiliaryNetwork {
     fn from(network: &Network) -> Self {
         let mut num_vertices = network.vertices.len();
         let mut fixed_arcs: Vec<usize> = vec![];
-        let mut fixed_arcs_memory: HashMap<usize, usize> = HashMap::new();
+        let mut fixed_arcs_memory: HashMap<usize, (usize, usize)> = HashMap::new();
         let mut costs = network.costs.clone();
         let mut capacities = network.capacities.clone();
         let mut balances = network.balances.clone();
@@ -85,17 +99,15 @@ impl From<&Network> for AuxiliaryNetwork {
         let mut network_states: Vec<Box<NetworkState>> = vec![];
 
         for a in network.fixed_arcs.iter() {
-            let (row, col) = create_extension_vertex(&capacities, a.0, a.1);
-            capacities.extend(&row, &col);
+            capacities.extend(&vec![0; num_vertices], &vec![0; num_vertices + 1]);
             capacities.set(a.0, a.1, 0);
             capacities.set(num_vertices, a.1, usize::MAX); // fixed arcs have infinite capacity
             capacities.set(a.0, num_vertices, usize::MAX); // additionally, add an infinite-capacity
                                                            // arc for flow from a.0 wanting to pass along the
                                                            // new fixed arc (set to cost 0 below)
 
-            let (row, col) = create_extension_vertex(&costs, a.0, a.1);
-            costs.extend(&row, &col);
-            costs.set(a.0, a.1, 0);
+            costs.extend(&vec![0; num_vertices], &vec![0; num_vertices + 1]);
+            costs.set(num_vertices, a.1, *costs.get(a.0, a.1));
             costs.set(a.0, num_vertices, 0); // prevents calculating cost twice
                                              // (old and new fixed arc)
 
@@ -104,7 +116,7 @@ impl From<&Network> for AuxiliaryNetwork {
             });
 
             fixed_arcs.push(num_vertices);
-            fixed_arcs_memory.insert(num_vertices, a.0);
+            fixed_arcs_memory.insert(num_vertices, *a);
 
             log::debug!(
                 "Extended the network with an auxiliary fixed arc ({}->{}) replacing ({}->{})",
@@ -154,21 +166,9 @@ impl From<&Network> for AuxiliaryNetwork {
 
             let network_state = NetworkState {
                 intermediate_arc_sets: arc_sets.clone(),
-                fixed_arcs: Matrix::from_elements(
-                    &vec![fixed_arcs.clone(); num_vertices],
-                    num_vertices,
-                    num_vertices,
-                ),
-                distances: Matrix::from_elements(
-                    &vec![distance_map.clone(); num_vertices],
-                    num_vertices,
-                    num_vertices,
-                ),
-                successors: Matrix::from_elements(
-                    &vec![successor_map.clone(); num_vertices],
-                    num_vertices,
-                    num_vertices,
-                ),
+                fixed_arcs: Matrix::filled_with(fixed_arcs.clone(), num_vertices, num_vertices),
+                distances: Matrix::filled_with(distance_map.clone(), num_vertices, num_vertices),
+                successors: Matrix::filled_with(successor_map.clone(), num_vertices, num_vertices),
                 capacities: capacities.clone(),
                 costs: Arc::new(costs.clone()),
                 arc_loads: arc_loads.clone(),
@@ -178,7 +178,6 @@ impl From<&Network> for AuxiliaryNetwork {
         });
 
         AuxiliaryNetwork {
-            costs,
             scenarios,
             network_states,
             fixed_arcs,

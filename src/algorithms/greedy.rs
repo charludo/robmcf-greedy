@@ -1,4 +1,4 @@
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, Mutex};
 
 use rayon::{
     iter::{IntoParallelRefMutIterator, ParallelIterator},
@@ -17,39 +17,47 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
 
     while network.exists_supply() {
         let exists_free_supply = network.exists_free_supply();
-        let global_waiting_at_fixed_arcs = network.waiting();
+        let waiting_at_fixed_arcs = network.waiting();
         let consistent_flows_to_move = network.max_consistent_flows();
+
+        let mut scenarios = std::mem::take(&mut network.scenarios);
+        let network_states = Mutex::new(std::mem::take(&mut network.network_states));
         let barrier_clone = barrier.clone();
 
-        network.scenarios.par_iter_mut().for_each(|scenario| {
-            let scenario_waiting_at_fixed_arcs = scenario.waiting(&network.fixed_arcs);
+        scenarios.par_iter_mut().for_each(|scenario| {
+            let relative_draws = scenario.get_relative_draws(&waiting_at_fixed_arcs);
 
-            let mut b_tuples = std::mem::take(&mut scenario.b_tuples_free);
-            b_tuples.retain_mut(|b_tuple| {
-                let (next_vertex, fixed_arc) = b_tuple.get_next_vertex(
-                    &global_waiting_at_fixed_arcs,
-                    &scenario_waiting_at_fixed_arcs,
-                    &network.costs,
+            scenario.b_tuples_free.retain_mut(|b_tuple| {
+                let next_vertex = network_states.lock().unwrap()[scenario.id].get_next_vertex(
+                    &relative_draws,
+                    b_tuple.origin,
+                    b_tuple.s,
+                    b_tuple.t,
                 );
 
-                scenario.use_arc(b_tuple.s, next_vertex, &network.costs);
-
+                if next_vertex == usize::MAX {
+                    panic!("No feasible flow could be found!");
+                }
                 log::debug!(
-                    "Moving supply with destination {} via: ({}->{})",
+                    "Moving supply in scenario {} with origin {} and destination {} via: ({}->{})",
+                    scenario.id,
+                    b_tuple.origin,
                     b_tuple.t,
                     b_tuple.s,
                     next_vertex
                 );
+
+                network_states.lock().unwrap()[scenario.id].use_arc(b_tuple.s, next_vertex);
                 b_tuple.s = next_vertex;
 
                 if b_tuple.s == b_tuple.t {
                     return false;
                 }
 
-                if let Some(fixed_arc) = fixed_arc {
+                if network.fixed_arcs.contains(&next_vertex) {
                     scenario
                         .b_tuples_fixed
-                        .entry(fixed_arc)
+                        .entry(next_vertex)
                         .or_default()
                         .push(b_tuple.clone());
                     return false;
@@ -57,13 +65,13 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
 
                 true
             });
-            scenario.b_tuples_free = b_tuples;
 
             network.fixed_arcs.iter().for_each(|fixed_arc| {
-                let mut consistent_flow_to_move = *consistent_flows_to_move.get(fixed_arc).unwrap();
+                let mut consistent_flow_to_move =
+                    *consistent_flows_to_move.get(fixed_arc).unwrap_or(&0);
                 if consistent_flow_to_move == 0 && !exists_free_supply {
-                    consistent_flow_to_move = scenario.waiting_at(fixed_arc);
-                    scenario.slack += consistent_flow_to_move;
+                    consistent_flow_to_move = scenario.waiting_at(*fixed_arc);
+                    network_states.lock().unwrap()[scenario.id].slack += consistent_flow_to_move;
                 };
 
                 if consistent_flow_to_move == 0 {
@@ -71,10 +79,9 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                 }
 
                 log::info!(
-                    "Moving {} units of supply consistently along the fixed arc ({}->{})",
+                    "Moving {} units of supply consistently along the fixed arc {}",
                     consistent_flow_to_move,
-                    fixed_arc.0,
-                    fixed_arc.1
+                    network.fixed_arc_repr(*fixed_arc)
                 );
 
                 let mut consistently_moved_supply = scenario
@@ -85,9 +92,10 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                     .collect::<Vec<_>>();
 
                 consistently_moved_supply.retain_mut(|b_tuple| {
-                    scenario.use_arc(fixed_arc.0, fixed_arc.1, &network.costs);
-                    b_tuple.mark_arc_used(fixed_arc);
-                    b_tuple.s = fixed_arc.1;
+                    let fixed_arc_terminal = network.get_fixed_arc_terminal(*fixed_arc);
+                    network_states.lock().unwrap()[scenario.id]
+                        .use_arc(*fixed_arc, fixed_arc_terminal);
+                    b_tuple.s = fixed_arc_terminal;
                     if b_tuple.s == b_tuple.t {
                         return false;
                     }
@@ -99,5 +107,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
 
             barrier_clone.wait();
         });
+        network.scenarios = scenarios;
+        network.network_states = Mutex::into_inner(network_states).unwrap();
     }
 }

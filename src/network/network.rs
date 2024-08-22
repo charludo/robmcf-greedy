@@ -86,7 +86,7 @@ impl Network {
             }
 
             if total_capacity < matrix.sum() {
-                panic!("No feasible solution exists: balance {} has higher supply than the network has capacities.", i+1);
+                panic!("Balance {i} has higher supply than the network has capacities!");
             }
         }
 
@@ -140,7 +140,14 @@ impl Network {
                         .filter(|(s, t)| s != t && !self.fixed_arcs.contains(&(*s, *t)))
                     {
                         if self.capacities.get(s, t) < solution.arc_loads[i].get(s, t) {
-                            log::error!("Scenario {} places an arc load of {} on arc ({}->{}), but this arc only has capacity {}.", i+1, solution.arc_loads[i].get(s, t), self.vertices[s], self.vertices[t], self.capacities.get(s, t));
+                            log::error!(
+                                "Scenario {} puts load {} on arc ({}->{}), but its capacity is {}.",
+                                i,
+                                solution.arc_loads[i].get(s, t),
+                                self.vertices[s],
+                                self.vertices[t],
+                                self.capacities.get(s, t)
+                            );
                         }
                     }
                 }
@@ -156,15 +163,15 @@ impl Display for Network {
         string_repr.push("Network:".to_string());
         string_repr.push("========".to_string());
         string_repr.push(format!("Vertices: ({})", self.vertices.join(", ")));
-        string_repr.push(format!("Capacities:\n{:>8}", self.capacities));
-        string_repr.push(format!("Costs:\n{:>8}", self.costs));
+        string_repr.push(format!("Capacities:\n{}", self.capacities));
+        string_repr.push(format!("Costs:\n{}", self.costs));
         string_repr.push(format!("{} Scenarios:", self.balances.len()));
         self.balances.iter().enumerate().for_each(|(i, b)| {
-            string_repr.push(format!("{}.:\n{:>8}", i + 1, b));
+            string_repr.push(format!("{}.:\n{}", i, b));
         });
         string_repr.push(format!("The following arcs have been marked as fixed:"));
         string_repr.push(format!(
-            "{:>8}",
+            "{}",
             self.fixed_arcs
                 .iter()
                 .map(|(s, t)| format!("({}->{})", self.vertices[*s], self.vertices[*t]))
