@@ -1,4 +1,4 @@
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{de::Visitor, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::Matrix;
 
@@ -38,5 +38,21 @@ where
         deserializer.deserialize_seq(MatrixVisitor {
             _phantom: std::marker::PhantomData,
         })
+    }
+}
+
+impl<T> Serialize for Matrix<T>
+where
+    T: Serialize + Clone,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.as_rows().len()))?;
+        for e in self.as_rows() {
+            seq.serialize_element(&e)?;
+        }
+        seq.end()
     }
 }

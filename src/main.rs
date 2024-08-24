@@ -5,6 +5,7 @@ mod util;
 use std::time::Instant;
 
 use network::Network;
+use text_io::read;
 use util::setup_logger;
 
 fn main() {
@@ -34,4 +35,10 @@ fn main() {
         elapsed_solve.as_secs(),
         elapsed_solve.subsec_millis()
     );
+
+    print!("Enter filename or leave blank to skip serializing: ");
+    let filename: String = read!("{}\n");
+    if !filename.is_empty() {
+        n.serialize(&filename);
+    }
 }

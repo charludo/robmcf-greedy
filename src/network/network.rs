@@ -1,12 +1,12 @@
 use crate::{algorithms::greedy, matrix::Matrix};
 use core::panic;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::{fmt::Display, fs::File, io::BufReader};
 
 use super::{auxiliary_network::AuxiliaryNetwork, solution::Solution};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct Network {
     pub vertices: Vec<String>,
     pub capacities: Matrix<usize>,
@@ -32,6 +32,12 @@ impl Network {
             Ok(result) => result,
             Err(msg) => panic!("Failed to parse the network: {}", msg),
         }
+    }
+
+    pub fn serialize(&self, filename: &str) {
+        let json_str = serde_json::to_string(self).unwrap();
+        log::debug!("Writing\n{json_str}\nto {filename}");
+        std::fs::write(filename.to_string(), json_str).unwrap();
     }
 
     pub fn validate_network(&self) {
