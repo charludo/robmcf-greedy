@@ -11,8 +11,19 @@ use util::setup_logger;
 fn main() {
     setup_logger();
 
-    let mut n = Network::from_file("network.json");
+    // let mut n = Network::from_file("network.json");
+    let mut n = Network::from_random(
+        10,       // num_vertices,
+        0.8,      // connectedness,
+        0.3,      // supply_density,
+        2,        // num_scenarios,
+        (3, 8),   // range_supply,
+        (10, 15), // range_capacity,
+        (4, 8),   // range_cost,
+        5,        // num_fixed_arcs,
+    );
     n.validate_network();
+    println!("{}", n);
 
     let start_preprocess = Instant::now();
     n.preprocess();

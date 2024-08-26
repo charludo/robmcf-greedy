@@ -20,7 +20,7 @@ impl Display for Matrix<String> {
             }
             string_repr.push("[".to_string());
             row.enumerate().for_each(|(j, elem)| {
-                string_repr.push(format!("{:>lpad$}", elem, lpad = lpad).to_string());
+                string_repr.push(format!("{}", elem).to_string());
                 if j != num_columns - 1 {
                     string_repr.push(", ".to_string());
                 }
