@@ -18,35 +18,42 @@ pub(crate) struct NetworkState {
 
     pub(crate) arc_loads: Matrix<usize>,
     pub(crate) slack: usize,
+
+    pub(crate) needs_refresh: Matrix<bool>,
 }
 
 impl NetworkState {
-    fn refresh(&mut self, s: usize, t: usize) {
-        log::info!("Arc ({s}->{t}) has reached its capacity. Refreshing the scenario.");
+    fn refresh(&mut self, origin: usize, dest: usize) {
+        log::info!("Performing scheduled refresh for arc (s, t) pair ({origin}, {dest}).");
+        let (distance_map, predecessor_map) = floyd_warshall(
+            &self
+                .capacities
+                .apply_mask(self.intermediate_arc_sets.get(origin, dest), 0),
+            &self.costs,
+        );
+        let successor_map = invert_predecessors(&predecessor_map);
+
+        self.distances.set(origin, dest, distance_map);
+        self.successors.set(origin, dest, successor_map);
+    }
+
+    fn schedule_refresh(&mut self, s: usize, t: usize) {
+        log::info!("Arc ({s}->{t}) has reached its capacity. Scheduling refreshes for all affected (s, t) pairs.");
         let affected_indices = self
             .intermediate_arc_sets
             .indices()
             .filter(|(origin, dest)| *self.intermediate_arc_sets.get(*origin, *dest).get(s, t));
         affected_indices.for_each(|(origin, dest)| {
-            log::debug!("Refreshing for ({origin}, {dest})");
-            let (distance_map, predecessor_map) = floyd_warshall(
-                &self
-                    .capacities
-                    .apply_mask(self.intermediate_arc_sets.get(origin, dest), 0),
-                &self.costs,
-            );
-            let successor_map = invert_predecessors(&predecessor_map);
-
-            self.distances.set(origin, dest, distance_map);
-            self.successors.set(origin, dest, successor_map);
+            log::debug!("-> ({origin}, {dest})");
+            self.needs_refresh.set(origin, dest, true);
         });
     }
 
-    pub(crate) fn use_arc(&mut self, s: usize, t: usize) {
+    pub(crate) fn use_arc(&mut self, origin: usize, dest: usize, s: usize, t: usize) {
         let _ = self.arc_loads.increment(s, t);
         let remaining_capacity = self.capacities.decrement(s, t);
         if remaining_capacity == 0 {
-            self.refresh(s, t);
+            self.schedule_refresh(origin, dest);
         }
     }
 
@@ -71,12 +78,16 @@ impl NetworkState {
     }
 
     pub(crate) fn get_next_vertex(
-        &self,
+        &mut self,
         relative_draws: &HashMap<usize, i32>,
         origin: usize,
         s: usize,
         dest: usize,
     ) -> usize {
+        if *self.needs_refresh.get(origin, dest) {
+            self.refresh(origin, dest);
+        }
+
         let successors = self.successors.get(origin, dest);
         let next_vertex_via_direct_path = *successors.get(s, dest);
         let closest_fixed_arc = match self.get_closest_fixed_arc(relative_draws, origin, s, dest) {

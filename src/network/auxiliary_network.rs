@@ -173,6 +173,7 @@ impl From<&Network> for AuxiliaryNetwork {
                 costs: Arc::new(costs.clone()),
                 arc_loads: arc_loads.clone(),
                 slack: 0,
+                needs_refresh: Matrix::filled_with(false, num_vertices, num_vertices),
             };
             network_states.push(Box::new(network_state));
         });
