@@ -93,31 +93,25 @@ mod tests {
         let capacities: Matrix<usize> =
             Matrix::from_elements(&vec![0, 0, 2, 1, 0, 2, 3, 2, 0], 3, 3);
         let costs: Matrix<usize> = Matrix::from_elements(&vec![0, 0, 3, 4, 0, 6, 7, 8, 0], 3, 3);
-        let distance_map: Matrix<usize> = Matrix::from_elements(
-            &vec![usize::MAX, 11, 3, 4, usize::MAX, 6, 7, 8, usize::MAX],
-            3,
-            3,
-        );
+        let distance_map: Matrix<usize> =
+            Matrix::from_elements(&vec![0, 11, 3, 4, 0, 6, 7, 8, 0], 3, 3);
         let predecessor_map: Matrix<Option<usize>> = Matrix::from_elements(
             &vec![
-                None,
+                Some(0),
                 Some(2),
                 Some(0),
                 Some(1),
-                None,
+                Some(1),
                 Some(1),
                 Some(2),
                 Some(2),
-                None,
+                Some(2),
             ],
             3,
             3,
         );
-        let successor_map: Matrix<usize> = Matrix::from_elements(
-            &vec![usize::MAX, 2, 2, 0, usize::MAX, 2, 0, 1, usize::MAX],
-            3,
-            3,
-        );
+        let successor_map: Matrix<usize> =
+            Matrix::from_elements(&vec![0, 2, 2, 0, 1, 2, 0, 1, 2], 3, 3);
 
         (
             capacities,
@@ -149,7 +143,7 @@ mod tests {
         let (_, _, _, predecessor_map, _) = setup();
         let path = shortest_path(&predecessor_map, 0, 0);
 
-        assert_eq!(Vec::<usize>::new(), path);
+        assert_eq!(vec![0], path);
     }
 
     #[test]
