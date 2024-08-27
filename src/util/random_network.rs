@@ -1,4 +1,4 @@
-use crate::{matrix::Matrix, network::Network};
+use crate::{matrix::Matrix, network::Network, network::Vertex};
 use rand::Rng;
 
 impl Network {
@@ -12,7 +12,13 @@ impl Network {
         range_cost: (usize, usize),
         num_fixed_arcs: usize,
     ) -> Self {
-        let vertices: Vec<String> = (1..=num_vertices).map(|i| format!("v{}", i)).collect();
+        let vertices: Vec<Vertex> = (1..=num_vertices)
+            .map(|i| Vertex {
+                name: format!("v{}", i),
+                x: generate_random_coordinate(num_vertices),
+                y: generate_random_coordinate(num_vertices),
+            })
+            .collect();
         let capacities: Matrix<usize> =
             generate_random_matrix(num_vertices, connectedness, range_capacity);
         let costs: Matrix<usize> = generate_random_matrix(num_vertices, 1.0, range_cost);
@@ -33,6 +39,12 @@ impl Network {
             solution: None,
         }
     }
+}
+
+fn generate_random_coordinate(num_vertices: usize) -> f32 {
+    let mut rng = rand::thread_rng();
+    let p = rng.gen_range((-100 * num_vertices as i32)..(100 * num_vertices as i32));
+    p as f32
 }
 
 fn generate_random_fixed_arc(num_vertices: usize) -> (usize, usize) {

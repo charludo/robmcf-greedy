@@ -5,6 +5,8 @@ mod network_state;
 mod preprocessing;
 mod scenario;
 mod solution;
+mod vertex;
 
 pub(super) use auxiliary_network::AuxiliaryNetwork;
 pub use network::*;
+pub(super) use vertex::Vertex;

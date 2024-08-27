@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::{fmt::Display, fs::File, io::BufReader};
 
-use super::{auxiliary_network::AuxiliaryNetwork, solution::Solution};
+use super::{auxiliary_network::AuxiliaryNetwork, solution::Solution, vertex::Vertex};
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct Network {
-    pub vertices: Vec<String>,
+    pub vertices: Vec<Vertex>,
     pub capacities: Matrix<usize>,
     pub costs: Matrix<usize>,
     pub balances: Vec<Matrix<usize>>,
@@ -168,7 +168,14 @@ impl Display for Network {
         let mut string_repr: Vec<String> = vec![];
         string_repr.push("Network:".to_string());
         string_repr.push("========".to_string());
-        string_repr.push(format!("Vertices: ({})", self.vertices.join(", ")));
+        string_repr.push(format!(
+            "Vertices: ({})",
+            self.vertices
+                .iter()
+                .map(|x| x.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
         string_repr.push(format!("Capacities:\n{}", self.capacities));
         string_repr.push(format!("Costs:\n{}", self.costs));
         string_repr.push(format!("{} Scenarios:", self.balances.len()));
