@@ -17,8 +17,8 @@ pub(crate) struct NetworkState {
     pub(crate) costs: Arc<Matrix<usize>>,
 
     pub(crate) arc_loads: Matrix<usize>,
-    pub(crate) slack: usize,
 
+    pub(crate) relative_draws: HashMap<usize, i32>,
     pub(crate) needs_refresh: Matrix<bool>,
 }
 
@@ -59,13 +59,7 @@ impl NetworkState {
         }
     }
 
-    fn get_closest_fixed_arc(
-        &self,
-        relative_draws: &HashMap<usize, i32>,
-        origin: usize,
-        s: usize,
-        dest: usize,
-    ) -> Option<usize> {
+    fn get_closest_fixed_arc(&self, origin: usize, s: usize, dest: usize) -> Option<usize> {
         // This assumes that the cost of the fixed arcs is non-zero, and the cost TO the fixed
         // vertex is zero instead.
         let distances = self.distances.get(origin, dest);
@@ -74,25 +68,19 @@ impl NetworkState {
             .iter()
             .min_by_key(|fixed_arc| {
                 (*distances.get(s, **fixed_arc) as i32) + (*distances.get(**fixed_arc, dest) as i32)
-                    - *relative_draws.get(fixed_arc).unwrap_or(&0)
+                    - *self.relative_draws.get(fixed_arc).unwrap_or(&0)
             })
             .copied()
     }
 
-    pub(crate) fn get_next_vertex(
-        &mut self,
-        relative_draws: &HashMap<usize, i32>,
-        origin: usize,
-        s: usize,
-        dest: usize,
-    ) -> usize {
+    pub(crate) fn get_next_vertex(&mut self, origin: usize, s: usize, dest: usize) -> usize {
         if *self.needs_refresh.get(origin, dest) {
             self.refresh(origin, dest);
         }
 
         let successors = self.successors.get(origin, dest);
         let next_vertex_via_direct_path = *successors.get(s, dest);
-        let closest_fixed_arc = match self.get_closest_fixed_arc(relative_draws, origin, s, dest) {
+        let closest_fixed_arc = match self.get_closest_fixed_arc(origin, s, dest) {
             None => return next_vertex_via_direct_path, // is this is usize::MAX, then no feasible flow exists anyways!
             Some(fixed_arc) => fixed_arc,
         };
@@ -108,7 +96,8 @@ impl NetworkState {
             .saturating_add(*distances.get(closest_fixed_arc, dest));
 
         if (cost_via_direct_path as i32)
-            < (cost_via_fixed_arc as i32) - *relative_draws.get(&closest_fixed_arc).unwrap_or(&0)
+            < (cost_via_fixed_arc as i32)
+                - *self.relative_draws.get(&closest_fixed_arc).unwrap_or(&0)
         {
             next_vertex_via_direct_path
         } else {

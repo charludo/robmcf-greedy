@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 array2d = "0.3.2"
+dashmap = { version = "6.0.1", features = ["rayon"] }
 env_logger = "0.11.5"
 log = "0.4.22"
 petgraph = "0.6.5"

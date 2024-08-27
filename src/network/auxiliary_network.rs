@@ -1,3 +1,4 @@
+use dashmap::DashMap;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
@@ -16,9 +17,7 @@ use super::{
 pub(crate) struct AuxiliaryNetwork {
     pub(crate) fixed_arcs: Vec<usize>,
     pub(crate) fixed_arcs_memory: HashMap<usize, (usize, usize)>,
-
-    pub(crate) scenarios: Vec<Box<Scenario>>,
-    pub(crate) network_states: Vec<Box<NetworkState>>,
+    pub(crate) scenarios: DashMap<usize, Scenario>,
 }
 
 impl AuxiliaryNetwork {
@@ -95,8 +94,7 @@ impl From<&Network> for AuxiliaryNetwork {
         let mut costs = network.costs.clone();
         let mut capacities = network.capacities.clone();
         let mut balances = network.balances.clone();
-        let mut scenarios: Vec<Box<Scenario>> = vec![];
-        let mut network_states: Vec<Box<NetworkState>> = vec![];
+        let scenarios: DashMap<usize, Scenario> = DashMap::new();
 
         for a in network.fixed_arcs.iter() {
             capacities.extend(&vec![0; num_vertices], &vec![0; num_vertices + 1]);
@@ -155,15 +153,6 @@ impl From<&Network> for AuxiliaryNetwork {
                                                                                            // from
                                                                                            // somewehere...
         balances.iter().enumerate().for_each(|(i, balance)| {
-            let (b_tuples_free, b_tuples_fixed) = generate_b_tuples(&balance);
-            let scenario = Scenario {
-                id: i,
-                b_tuples_free,
-                b_tuples_fixed,
-            };
-            log::debug!("Generated {}", scenario);
-            scenarios.push(Box::new(scenario));
-
             let network_state = NetworkState {
                 intermediate_arc_sets: arc_sets.clone(),
                 fixed_arcs: Matrix::filled_with(fixed_arcs.clone(), num_vertices, num_vertices),
@@ -172,15 +161,24 @@ impl From<&Network> for AuxiliaryNetwork {
                 capacities: capacities.clone(),
                 costs: Arc::new(costs.clone()),
                 arc_loads: arc_loads.clone(),
-                slack: 0,
                 needs_refresh: Matrix::filled_with(false, num_vertices, num_vertices),
+                relative_draws: HashMap::new(),
             };
-            network_states.push(Box::new(network_state));
+
+            let (b_tuples_free, b_tuples_fixed) = generate_b_tuples(&balance);
+            let scenario = Scenario {
+                id: i,
+                b_tuples_free,
+                b_tuples_fixed,
+                slack: 0,
+                network_state,
+            };
+            log::debug!("Generated {}", scenario);
+            scenarios.insert(i, scenario);
         });
 
         AuxiliaryNetwork {
             scenarios,
-            network_states,
             fixed_arcs,
             fixed_arcs_memory,
         }
