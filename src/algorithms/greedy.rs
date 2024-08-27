@@ -47,12 +47,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                     next_vertex
                 );
 
-                network_states.lock().unwrap()[scenario.id].use_arc(
-                    b_tuple.origin,
-                    b_tuple.t,
-                    b_tuple.s,
-                    next_vertex,
-                );
+                network_states.lock().unwrap()[scenario.id].use_arc(b_tuple.s, next_vertex);
                 b_tuple.s = next_vertex;
 
                 if b_tuple.s == b_tuple.t {
@@ -98,12 +93,8 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
 
                 consistently_moved_supply.retain_mut(|b_tuple| {
                     let fixed_arc_terminal = network.get_fixed_arc_terminal(*fixed_arc);
-                    network_states.lock().unwrap()[scenario.id].use_arc(
-                        b_tuple.origin,
-                        b_tuple.t,
-                        *fixed_arc,
-                        fixed_arc_terminal,
-                    );
+                    network_states.lock().unwrap()[scenario.id]
+                        .use_arc(*fixed_arc, fixed_arc_terminal);
                     b_tuple.s = fixed_arc_terminal;
                     if b_tuple.s == b_tuple.t {
                         return false;

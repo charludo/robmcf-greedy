@@ -16,6 +16,10 @@ pub(crate) fn floyd_warshall(
         dist.set(x, y, *costs.get(x, y));
         prev.set(x, y, Some(x));
     }
+    for v in 0..capacities.num_rows() {
+        dist.set(v, v, 0);
+        prev.set(v, v, Some(v));
+    }
     for k in 0..capacities.num_rows() {
         for i in 0..capacities.num_rows() {
             for j in 0..capacities.num_rows() {
@@ -26,10 +30,6 @@ pub(crate) fn floyd_warshall(
                 }
             }
         }
-    }
-    for v in 0..capacities.num_rows() {
-        dist.set(v, v, usize::MAX);
-        prev.set(v, v, None);
     }
 
     log::trace!(

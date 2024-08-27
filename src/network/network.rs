@@ -186,7 +186,7 @@ impl Display for Network {
         ));
         string_repr.push(match &self.solution {
             Some(solution) => format!("{}", solution),
-            None => "Solution has not benn calculated yet.".to_string(),
+            None => "Solution has not been calculated yet.".to_string(),
         });
         write!(f, "{}", string_repr.join("\n"))
     }

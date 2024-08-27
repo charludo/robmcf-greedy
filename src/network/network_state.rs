@@ -24,7 +24,7 @@ pub(crate) struct NetworkState {
 
 impl NetworkState {
     fn refresh(&mut self, origin: usize, dest: usize) {
-        log::info!("Performing scheduled refresh for arc (s, t) pair ({origin}, {dest}).");
+        log::info!("Performing scheduled refresh for (s, t) pair ({origin}, {dest}).");
         let (distance_map, predecessor_map) = floyd_warshall(
             &self
                 .capacities
@@ -35,6 +35,8 @@ impl NetworkState {
 
         self.distances.set(origin, dest, distance_map);
         self.successors.set(origin, dest, successor_map);
+
+        self.needs_refresh.set(origin, dest, false);
     }
 
     fn schedule_refresh(&mut self, s: usize, t: usize) {
@@ -49,11 +51,11 @@ impl NetworkState {
         });
     }
 
-    pub(crate) fn use_arc(&mut self, origin: usize, dest: usize, s: usize, t: usize) {
+    pub(crate) fn use_arc(&mut self, s: usize, t: usize) {
         let _ = self.arc_loads.increment(s, t);
         let remaining_capacity = self.capacities.decrement(s, t);
         if remaining_capacity == 0 {
-            self.schedule_refresh(origin, dest);
+            self.schedule_refresh(s, t);
         }
     }
 
