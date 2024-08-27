@@ -5,7 +5,7 @@ pub mod random_network;
 
 pub(crate) fn setup_logger() {
     env_logger::builder()
-        .filter(None, LevelFilter::Info)
+        .filter(None, LevelFilter::Error)
         .format(|buf, record| {
             let style = buf.default_level_style(record.level());
             writeln!(
