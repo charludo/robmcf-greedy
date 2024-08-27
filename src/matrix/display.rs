@@ -1,11 +1,13 @@
 use core::fmt::Display;
 use std::fmt::Result;
 
+use colored::ColoredString;
+
 use super::Matrix;
 
 impl Display for Matrix<String> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
-        let lpad = match self.elements().map(|x| x.to_string().len()).max() {
+        let lpad = match self.elements().map(|x| x.len()).max() {
             Some(element) => element,
             None => return write!(f, "[[]]"),
         };
@@ -33,6 +35,20 @@ impl Display for Matrix<String> {
             }
         });
         write!(f, "{}", string_repr.join(""))
+    }
+}
+
+impl Display for Matrix<ColoredString> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
+        write!(
+            f,
+            "{}",
+            Matrix::from_elements(
+                &self.elements().map(|x| x.to_string()).collect::<Vec<_>>(),
+                self.num_rows(),
+                self.num_columns()
+            )
+        )
     }
 }
 
