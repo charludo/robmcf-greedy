@@ -7,4 +7,4 @@ mod scenario;
 mod solution;
 
 pub(super) use auxiliary_network::AuxiliaryNetwork;
-pub(crate) use network::*;
+pub use network::*;

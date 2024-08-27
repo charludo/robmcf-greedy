@@ -1,12 +1,9 @@
-mod algorithms;
-mod matrix;
-mod network;
-mod util;
-use std::time::Instant;
-
-use network::Network;
+use log::LevelFilter;
+use std::io::Write;
 use text_io::read;
-use util::setup_logger;
+
+use robmcf_greedy::Network;
+use std::time::Instant;
 
 fn main() {
     setup_logger();
@@ -53,4 +50,29 @@ fn main() {
     if !filename.is_empty() {
         n.serialize(&filename);
     }
+}
+
+fn setup_logger() {
+    env_logger::builder()
+        .filter(None, LevelFilter::Info)
+        .format(|buf, record| {
+            let style = buf.default_level_style(record.level());
+            writeln!(
+                buf,
+                "[{style}{}{style:#} {}:{}] - {} ",
+                record.level(),
+                match record.file() {
+                    Some(r) => r,
+                    None => "",
+                },
+                match record.line() {
+                    Some(r) => r.to_string(),
+                    None => "".to_string(),
+                },
+                record.args()
+            )
+        })
+        .init();
+
+    log::debug!("Set up logging.");
 }
