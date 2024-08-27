@@ -13,10 +13,10 @@ fn main() {
 
     // let mut n = Network::from_file("error.json");
     let mut n = Network::from_random(
-        40,       // num_vertices,
+        20,       // num_vertices,
         0.6,      // connectedness,
         0.3,      // supply_density,
-        4,        // num_scenarios,
+        2,        // num_scenarios,
         (3, 8),   // range_supply,
         (15, 40), // range_capacity,
         (4, 8),   // range_cost,

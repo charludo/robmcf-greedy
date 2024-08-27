@@ -1,4 +1,4 @@
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 use std::fmt::Display;
 
 use crate::matrix::Matrix;
@@ -10,13 +10,13 @@ pub(crate) struct Solution {
     pub(crate) arc_loads: Vec<Matrix<usize>>,
     pub(crate) slack: Vec<usize>,
     pub(crate) costs: Vec<usize>,
-    arc_loads_repr: Vec<Matrix<String>>,
+    arc_loads_repr: Vec<Matrix<ColoredString>>,
 }
 
 impl From<&Network> for Solution {
     fn from(network: &Network) -> Self {
         let mut arc_loads: Vec<Matrix<usize>> = Vec::new();
-        let mut arc_loads_repr: Vec<Matrix<String>> = Vec::new();
+        let mut arc_loads_repr: Vec<Matrix<ColoredString>> = Vec::new();
         let mut slack: Vec<usize> = Vec::new();
         let mut costs: Vec<usize> = Vec::new();
         if let Some(auxiliary_network) = &network.auxiliary_network {
@@ -36,7 +36,7 @@ impl From<&Network> for Solution {
                 let mut scenario_arc_loads_str = Matrix::from_elements(
                     &scenario_arc_loads
                         .elements()
-                        .map(|x| x.to_string())
+                        .map(|x| x.to_string().white())
                         .collect(),
                     scenario_arc_loads.num_rows(),
                     scenario_arc_loads.num_columns(),
@@ -45,7 +45,7 @@ impl From<&Network> for Solution {
                     scenario_arc_loads_str.set(
                         *a0,
                         *a1,
-                        scenario_arc_loads_str.get(*a0, *a1).green().to_string(),
+                        scenario_arc_loads_str.get(*a0, *a1).clone().green(),
                     );
                 });
                 arc_loads.push(scenario_arc_loads);
