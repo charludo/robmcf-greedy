@@ -7,19 +7,12 @@ use crate::{shared::*, NetworkWrapper};
 pub struct NetworkPlugin;
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, (spawn_vertices, draw_arcs));
-        // .add_systems(Update, draw_arcs);
+        app.add_systems(Startup, (spawn_vertices, spawn_arcs));
     }
 }
 
 #[derive(Component)]
 struct Vertex(usize);
-
-#[derive(Bundle)]
-struct VertexBundle {
-    vertex: Vertex,
-    mesh: MaterialMesh2dBundle<ColorMaterial>,
-}
 
 fn spawn_vertices(
     mut commands: Commands,
@@ -29,38 +22,45 @@ fn spawn_vertices(
     app_settings: Res<AppSettings>,
 ) {
     for (i, vertex) in network.n.vertices.iter().enumerate() {
+        let shape = shapes::Circle {
+            radius: 100.,
+            ..default()
+        };
+
         let entity = commands
-            .spawn(VertexBundle {
-                vertex: Vertex(i),
-                mesh: MaterialMesh2dBundle {
-                    mesh: meshes.add(Circle::new(100.)).into(),
-                    material: materials.add(ColorMaterial::from(Color::WHITE)),
-                    transform: Transform::from_translation(Vec3::new(
-                        vertex.x,
-                        vertex.y,
-                        app_settings.vertex_layer,
-                    )),
+            .spawn((
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&shape),
+                    spatial: SpatialBundle {
+                        transform: Transform::from_translation(Vec3::new(
+                            vertex.x,
+                            vertex.y,
+                            app_settings.vertex_layer,
+                        )),
+                        ..default()
+                    },
                     ..default()
                 },
-            })
+                Stroke::new(app_settings.baseline_color, 15.),
+                Fill::color(app_settings.background_color),
+                Vertex(i),
+            ))
             .id();
 
         commands.entity(entity).with_children(|parent| {
-            parent.spawn(MaterialMesh2dBundle {
-                mesh: meshes.add(Circle::new(90.)).into(),
-                material: materials.add(ColorMaterial::from(app_settings.background_color)),
-                transform: Transform::from_translation(Vec3::new(0., 0., 0.5)),
-                ..default()
-            });
             parent.spawn(Text2dBundle {
                 text: Text::from_section(
                     vertex.name.clone(),
                     TextStyle {
-                        font_size: 50.0,
+                        font_size: 300.0,
                         ..default()
                     },
                 ),
-                transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
+                transform: Transform {
+                    translation: Vec3::new(0., 0., 1.),
+                    scale: Vec3::new(0.2, 0.2, 0.2),
+                    ..default()
+                },
                 ..default()
             });
         });
@@ -94,7 +94,11 @@ impl Arc {
     }
 }
 
-fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>, app_settings: Res<AppSettings>) {
+fn spawn_arcs(
+    mut commands: Commands,
+    network: Res<NetworkWrapper>,
+    app_settings: Res<AppSettings>,
+) {
     let capacities = network.n.capacities.as_rows();
     let costs = network.n.costs.as_rows();
     let (cap_min, cap_max) = (
