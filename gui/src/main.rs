@@ -1,6 +1,8 @@
 use bevy::prelude::*;
+use bevy_mod_picking::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 mod camera;
+
 mod network;
 mod shared;
 
@@ -8,7 +10,7 @@ use camera::CameraPlugin;
 use network::NetworkPlugin;
 
 use bevy::window::PresentMode;
-use bevy_mod_picking::{debug::DebugPickingPlugin, DefaultPickingPlugins, PickableBundle};
+use bevy_mod_picking::DefaultPickingPlugins;
 use robmcf_greedy::Network;
 use shared::*;
 
@@ -68,14 +70,9 @@ fn main() {
         .add_plugins(CameraPlugin)
         .add_plugins(NetworkPlugin)
         .add_plugins(
-            DefaultPickingPlugins
-                .build()
-                .disable::<DebugPickingPlugin>(),
+            DefaultPickingPlugins, // .build()
+                                   // .disable::<DebugPickingPlugin>(),
         )
-        .add_systems(Startup, setup)
+        .insert_resource(DebugPickingMode::Normal)
         .run();
-}
-
-fn setup(mut commands: Commands) {
-    commands.spawn(PickableBundle::default());
 }

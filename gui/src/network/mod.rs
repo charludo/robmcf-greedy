@@ -1,7 +1,10 @@
 use bevy::prelude::*;
-use bevy::sprite::MaterialMesh2dBundle;
+use bevy_mod_picking::events::{Drag, Pointer};
+use bevy_mod_picking::prelude::{Listener, On};
+use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::prelude::*;
 
+use crate::camera::Zoom;
 use crate::{shared::*, NetworkWrapper};
 
 pub struct NetworkPlugin;
@@ -14,10 +17,46 @@ impl Plugin for NetworkPlugin {
 #[derive(Component)]
 struct Vertex(usize);
 
+fn drag_vertex(
+    drag: Listener<Pointer<Drag>>,
+    mut query: Query<(Entity, &Vertex, &mut Transform)>,
+    mut query_arcs: Query<(&mut Arc, &mut Path, &Children), Without<Vertex>>,
+    mut query_arrows: Query<&mut Transform, (With<Arrow>, Without<Vertex>)>,
+    zoom_query: Query<&Zoom>,
+) {
+    let Ok((_, vertex, mut transform)) = query.get_mut(drag.target) else {
+        return;
+    };
+    let zoom = zoom_query.get_single().unwrap();
+    let transform_x = transform.translation.x + drag.delta.x * zoom.target;
+    let transform_y = transform.translation.y - drag.delta.y * zoom.target;
+
+    transform.translation.x = transform_x;
+    transform.translation.y = transform_y;
+
+    for (mut arc, mut path, children) in query_arcs
+        .iter_mut()
+        .filter(|(a, _, _)| a.s == vertex.0 || a.t == vertex.0)
+    {
+        if arc.s == vertex.0 {
+            arc.s_pos.x = transform_x;
+            arc.s_pos.y = transform_y;
+        } else {
+            arc.t_pos.x = transform_x;
+            arc.t_pos.y = transform_y;
+        }
+        *path = arc.get_path();
+
+        let mut arrow = query_arrows.get_mut(children[0]).unwrap();
+        let arrow_translation = arc.get_arrow_translation();
+        arrow.translation.x = arrow_translation.x;
+        arrow.translation.y = arrow_translation.y;
+        arrow.rotation = arc.get_arrow_rotation();
+    }
+}
+
 fn spawn_vertices(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     network: Res<NetworkWrapper>,
     app_settings: Res<AppSettings>,
 ) {
@@ -35,7 +74,7 @@ fn spawn_vertices(
                         transform: Transform::from_translation(Vec3::new(
                             vertex.x,
                             vertex.y,
-                            app_settings.vertex_layer,
+                            app_settings.vertex_layer + i as f32 * 0.001,
                         )),
                         ..default()
                     },
@@ -44,11 +83,13 @@ fn spawn_vertices(
                 Stroke::new(app_settings.baseline_color, 15.),
                 Fill::color(app_settings.background_color),
                 Vertex(i),
+                PickableBundle::default(),
+                On::<Pointer<Drag>>::run(drag_vertex),
             ))
             .id();
 
         commands.entity(entity).with_children(|parent| {
-            parent.spawn(Text2dBundle {
+            parent.spawn((Text2dBundle {
                 text: Text::from_section(
                     vertex.name.clone(),
                     TextStyle {
@@ -57,12 +98,12 @@ fn spawn_vertices(
                     },
                 ),
                 transform: Transform {
-                    translation: Vec3::new(0., 0., 1.),
+                    translation: Vec3::new(0., 0., 0.001),
                     scale: Vec3::new(0.2, 0.2, 0.2),
                     ..default()
                 },
                 ..default()
-            });
+            },));
         });
     }
 }
@@ -79,6 +120,9 @@ struct Arc {
     fixed: bool,
 }
 
+#[derive(Component)]
+struct Arrow;
+
 impl Arc {
     pub fn arc_point(&self) -> Vec2 {
         let midpoint = self.s_pos.midpoint(self.t_pos);
@@ -91,6 +135,25 @@ impl Arc {
         let scaling_factor = 25.;
         let fraction = (self.capacity as f32 - min) / (max - min);
         minimum_width + scaling_factor * (0.5 * (4. * fraction - 2.).tanh() + 0.5)
+    }
+
+    pub fn get_path(&self) -> Path {
+        let mut path_builder = PathBuilder::new();
+        path_builder.move_to(self.s_pos);
+        path_builder.quadratic_bezier_to(self.arc_point(), self.t_pos);
+        let path = path_builder.build();
+        path
+    }
+
+    pub fn get_arrow_translation(&self) -> Vec2 {
+        self.s_pos.midpoint(self.t_pos) + Vec2::new(0., -1.).rotate(self.s_pos - self.t_pos) * 0.1
+    }
+
+    pub fn get_arrow_rotation(&self) -> Quat {
+        Quat::from_axis_angle(
+            Vec3::new(0., 0., 1.),
+            Vec2::new(0., -1.).angle_between(self.s_pos - self.t_pos),
+        )
     }
 }
 
@@ -127,15 +190,10 @@ fn spawn_arcs(
                     (app_settings.baseline_color, app_settings.arc_layer)
                 };
 
-                let mut path_builder = PathBuilder::new();
-                path_builder.move_to(arc.s_pos);
-                path_builder.quadratic_bezier_to(arc.arc_point(), arc.t_pos);
-                let path = path_builder.build();
-
                 let entity = commands
                     .spawn((
                         ShapeBundle {
-                            path,
+                            path: arc.get_path(),
                             spatial: SpatialBundle {
                                 transform: Transform {
                                     translation: (Vec2::ZERO.extend(layer)),
@@ -147,6 +205,7 @@ fn spawn_arcs(
                         },
                         Stroke::new(color, line_width),
                         arc,
+                        PickableBundle::default(),
                     ))
                     .id();
 
@@ -161,13 +220,8 @@ fn spawn_arcs(
                             path: GeometryBuilder::build_as(&shape),
                             spatial: SpatialBundle {
                                 transform: Transform {
-                                    translation: (arc.s_pos.midpoint(arc.t_pos)
-                                        + Vec2::new(0., -1.).rotate(arc.s_pos - arc.t_pos) * 0.1)
-                                        .extend(layer),
-                                    rotation: Quat::from_axis_angle(
-                                        Vec3::new(0., 0., 1.),
-                                        Vec2::new(0., -1.).angle_between(arc.s_pos - arc.t_pos),
-                                    ),
+                                    translation: arc.get_arrow_translation().extend(layer),
+                                    rotation: arc.get_arrow_rotation(),
                                     ..default()
                                 },
                                 ..default()
@@ -176,6 +230,7 @@ fn spawn_arcs(
                         },
                         Stroke::new(color, (0.5 * line_width).max(6.)),
                         Fill::color(color),
+                        Arrow,
                     ));
                 });
             }

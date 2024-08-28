@@ -19,9 +19,9 @@ impl Plugin for CameraPlugin {
 }
 
 #[derive(Component)]
-struct Zoom {
+pub struct Zoom {
     start: f32,
-    target: f32,
+    pub target: f32,
     timer: Timer,
 }
 
