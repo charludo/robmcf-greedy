@@ -79,11 +79,22 @@ impl Arc {
         let ortho_offshoot = Vec2::new(0., -1.).rotate(self.s_pos - self.t_pos) * 0.2;
         midpoint + ortho_offshoot
     }
+
+    pub fn line_width(&self, min: f32, max: f32) -> f32 {
+        let minimum_width = 4.;
+        let scaling_factor = 40.;
+        let fraction = (self.capacity as f32 - min) / (max - min);
+        minimum_width + scaling_factor * 0.5 * (4. * fraction - 2.).tanh() + 0.5
+    }
 }
 
 fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>) {
     let capacities = network.n.capacities.as_rows();
     let costs = network.n.costs.as_rows();
+    let (cap_min, cap_max) = (
+        network.n.capacities.min() as f32,
+        network.n.capacities.max() as f32,
+    );
     for s in 0..network.n.vertices.len() {
         let this_vertex = &network.n.vertices[s];
         for (t, capacity) in capacities[s].iter().enumerate() {
@@ -98,6 +109,8 @@ fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>) {
                     cost: costs[s][t],
                     load: 0,
                 };
+                let line_width = arc.line_width(cap_min, cap_max);
+
                 let mut path_builder = PathBuilder::new();
                 path_builder.move_to(arc.s_pos);
                 path_builder.quadratic_bezier_to(arc.arc_point(), arc.t_pos);
@@ -106,14 +119,14 @@ fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>) {
                 let entity = commands
                     .spawn((
                         ShapeBundle { path, ..default() },
-                        Stroke::new(Color::WHITE, 10.0),
+                        Stroke::new(Color::WHITE, line_width),
                         arc,
                     ))
                     .id();
 
                 let shape = shapes::RegularPolygon {
                     sides: 3,
-                    feature: shapes::RegularPolygonFeature::Radius(12.0),
+                    feature: shapes::RegularPolygonFeature::Radius(line_width.max(4.0)),
                     ..shapes::RegularPolygon::default()
                 };
                 commands.entity(entity).with_children(|parent| {

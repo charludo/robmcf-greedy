@@ -206,6 +206,14 @@ impl Matrix<usize> {
         });
         Matrix::from_elements(&result_vec, self.num_rows(), self.num_columns())
     }
+
+    pub fn min(&self) -> usize {
+        *self.elements().min().unwrap()
+    }
+
+    pub fn max(&self) -> usize {
+        *self.elements().max().unwrap()
+    }
 }
 
 #[cfg(test)]
