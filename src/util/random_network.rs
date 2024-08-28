@@ -26,7 +26,7 @@ impl Network {
             .map(|_| generate_random_matrix(num_vertices, supply_density, range_supply))
             .collect();
         let fixed_arcs: Vec<(usize, usize)> = (0..num_fixed_arcs)
-            .map(|_| generate_random_fixed_arc(num_vertices))
+            .map(|_| generate_random_fixed_arc(num_vertices, &capacities))
             .collect();
 
         Network {
@@ -47,12 +47,13 @@ fn generate_random_coordinate(num_vertices: usize) -> f32 {
     p as f32
 }
 
-fn generate_random_fixed_arc(num_vertices: usize) -> (usize, usize) {
+fn generate_random_fixed_arc(num_vertices: usize, capacities: &Matrix<usize>) -> (usize, usize) {
     let mut rng = rand::thread_rng();
-    let a0 = rng.gen_range(0..num_vertices);
-    let mut a1 = rng.gen_range(0..num_vertices);
 
-    while a0 == a1 {
+    let mut a0 = rng.gen_range(0..num_vertices);
+    let mut a1 = rng.gen_range(0..num_vertices);
+    while a0 == a1 || *capacities.get(a0, a1) == 0 {
+        a0 = rng.gen_range(0..num_vertices);
         a1 = rng.gen_range(0..num_vertices);
     }
 
