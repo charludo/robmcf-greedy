@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy_prototype_lyon::prelude::*;
 
-use crate::NetworkWrapper;
+use crate::{shared::*, NetworkWrapper};
 
 pub struct NetworkPlugin;
 impl Plugin for NetworkPlugin {
@@ -26,6 +26,7 @@ fn spawn_vertices(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     network: Res<NetworkWrapper>,
+    app_settings: Res<AppSettings>,
 ) {
     for (i, vertex) in network.n.vertices.iter().enumerate() {
         let entity = commands
@@ -34,7 +35,11 @@ fn spawn_vertices(
                 mesh: MaterialMesh2dBundle {
                     mesh: meshes.add(Circle::new(100.)).into(),
                     material: materials.add(ColorMaterial::from(Color::WHITE)),
-                    transform: Transform::from_translation(Vec3::new(vertex.x, vertex.y, 0.)),
+                    transform: Transform::from_translation(Vec3::new(
+                        vertex.x,
+                        vertex.y,
+                        app_settings.vertex_layer,
+                    )),
                     ..default()
                 },
             })
@@ -43,7 +48,7 @@ fn spawn_vertices(
         commands.entity(entity).with_children(|parent| {
             parent.spawn(MaterialMesh2dBundle {
                 mesh: meshes.add(Circle::new(90.)).into(),
-                material: materials.add(ColorMaterial::from(Color::srgb(0.16, 0.16, 0.18))),
+                material: materials.add(ColorMaterial::from(app_settings.background_color)),
                 transform: Transform::from_translation(Vec3::new(0., 0., 0.5)),
                 ..default()
             });
@@ -71,6 +76,7 @@ struct Arc {
     capacity: usize,
     cost: usize,
     load: usize,
+    fixed: bool,
 }
 
 impl Arc {
@@ -81,25 +87,25 @@ impl Arc {
     }
 
     pub fn line_width(&self, min: f32, max: f32) -> f32 {
-        let minimum_width = 4.;
-        let scaling_factor = 40.;
+        let minimum_width = 3.;
+        let scaling_factor = 25.;
         let fraction = (self.capacity as f32 - min) / (max - min);
-        minimum_width + scaling_factor * 0.5 * (4. * fraction - 2.).tanh() + 0.5
+        minimum_width + scaling_factor * (0.5 * (4. * fraction - 2.).tanh() + 0.5)
     }
 }
 
-fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>) {
+fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>, app_settings: Res<AppSettings>) {
     let capacities = network.n.capacities.as_rows();
     let costs = network.n.costs.as_rows();
     let (cap_min, cap_max) = (
         network.n.capacities.min() as f32,
         network.n.capacities.max() as f32,
     );
-    for s in 0..network.n.vertices.len() {
-        let this_vertex = &network.n.vertices[s];
-        for (t, capacity) in capacities[s].iter().enumerate() {
-            if *capacity > 0 {
-                let other_vertex = &network.n.vertices[t];
+    for (s, this_vertex) in network.n.vertices.iter().enumerate() {
+        for (t, other_vertex) in network.n.vertices.iter().enumerate() {
+            let capacity = capacities[s][t];
+            let is_fixed = network.n.fixed_arcs.contains(&(s, t));
+            if capacity > 0 || is_fixed {
                 let arc = Arc {
                     s,
                     t,
@@ -108,8 +114,14 @@ fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>) {
                     capacity: capacities[s][t],
                     cost: costs[s][t],
                     load: 0,
+                    fixed: is_fixed,
                 };
                 let line_width = arc.line_width(cap_min, cap_max);
+                let (color, layer) = if is_fixed {
+                    (app_settings.highlight_color, app_settings.arc_fixed_layer)
+                } else {
+                    (app_settings.baseline_color, app_settings.arc_layer)
+                };
 
                 let mut path_builder = PathBuilder::new();
                 path_builder.move_to(arc.s_pos);
@@ -118,15 +130,25 @@ fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>) {
 
                 let entity = commands
                     .spawn((
-                        ShapeBundle { path, ..default() },
-                        Stroke::new(Color::WHITE, line_width),
+                        ShapeBundle {
+                            path,
+                            spatial: SpatialBundle {
+                                transform: Transform {
+                                    translation: (Vec2::ZERO.extend(layer)),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        Stroke::new(color, line_width),
                         arc,
                     ))
                     .id();
 
                 let shape = shapes::RegularPolygon {
                     sides: 3,
-                    feature: shapes::RegularPolygonFeature::Radius(line_width.max(4.0)),
+                    feature: shapes::RegularPolygonFeature::Radius(line_width.max(6.)),
                     ..shapes::RegularPolygon::default()
                 };
                 commands.entity(entity).with_children(|parent| {
@@ -137,7 +159,7 @@ fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>) {
                                 transform: Transform {
                                     translation: (arc.s_pos.midpoint(arc.t_pos)
                                         + Vec2::new(0., -1.).rotate(arc.s_pos - arc.t_pos) * 0.1)
-                                        .extend(0.),
+                                        .extend(layer),
                                     rotation: Quat::from_axis_angle(
                                         Vec3::new(0., 0., 1.),
                                         Vec2::new(0., -1.).angle_between(arc.s_pos - arc.t_pos),
@@ -148,8 +170,8 @@ fn draw_arcs(mut commands: Commands, network: Res<NetworkWrapper>) {
                             },
                             ..default()
                         },
-                        Stroke::new(Color::WHITE, 10.0),
-                        Fill::color(Color::WHITE),
+                        Stroke::new(color, (0.5 * line_width).max(6.)),
+                        Fill::color(color),
                     ));
                 });
             }
