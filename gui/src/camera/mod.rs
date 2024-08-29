@@ -1,6 +1,7 @@
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use bevy_mod_picking::PickableBundle;
 use simple_easing::cubic_in_out;
 
 pub struct CameraPlugin;
@@ -33,16 +34,35 @@ pub struct CameraMarker;
 #[derive(Resource, Default)]
 pub struct WorldCoords(pub Vec2);
 
+#[derive(Component)]
+pub struct BackgroundMarker;
+
 fn spawn_camera(mut commands: Commands) {
-    commands.spawn((
-        Camera2dBundle::default(),
-        Zoom {
-            start: 10.0,
-            target: 3.0,
-            timer: Timer::from_seconds(0.4, TimerMode::Once),
-        },
-        CameraMarker,
-    ));
+    commands
+        .spawn((
+            Camera2dBundle::default(),
+            Zoom {
+                start: 10.0,
+                target: 3.0,
+                timer: Timer::from_seconds(0.4, TimerMode::Once),
+            },
+            CameraMarker,
+        ))
+        .with_children(|child| {
+            child.spawn((
+                SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::srgba(0., 0., 0., 0.),
+                        custom_size: Some(Vec2::MAX),
+                        ..Default::default()
+                    },
+                    transform: Transform::from_xyz(0., 0., -1.),
+                    ..Default::default()
+                },
+                PickableBundle::default(),
+                BackgroundMarker,
+            ));
+        });
     commands.insert_resource(WorldCoords::default());
 }
 

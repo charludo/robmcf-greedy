@@ -1,22 +1,24 @@
 use bevy::prelude::*;
 use bevy_mod_picking::events::{Drag, DragEnd, DragEnter, DragLeave, DragStart, Pointer};
-use bevy_mod_picking::prelude::{Listener, On, PointerButton};
+use bevy_mod_picking::focus::PickingInteraction;
+use bevy_mod_picking::prelude::{Listener, On, Pickable, PointerButton};
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::prelude::*;
 
-use crate::camera::{WorldCoords, Zoom};
+use crate::camera::{BackgroundMarker, WorldCoords, Zoom};
 use crate::network::arc::*;
 use crate::{shared::*, NetworkWrapper};
 
 #[derive(Component)]
 pub struct Vertex(pub usize);
 
-pub fn spawn_vertices(
-    mut commands: Commands,
-    network: Res<NetworkWrapper>,
-    app_settings: Res<AppSettings>,
-) {
-    for (i, vertex) in network.n.vertices.iter().enumerate() {
+impl Vertex {
+    pub fn spawn(
+        vertex_number: usize,
+        vertex: &robmcf_greedy::Vertex,
+        commands: &mut Commands,
+        app_settings: &Res<AppSettings>,
+    ) {
         let shape = shapes::Circle {
             radius: 100.,
             ..default()
@@ -30,7 +32,7 @@ pub fn spawn_vertices(
                         transform: Transform::from_translation(Vec3::new(
                             vertex.x,
                             vertex.y,
-                            app_settings.vertex_layer + i as f32 * 0.001,
+                            app_settings.vertex_layer + vertex_number as f32 * 0.001,
                         )),
                         ..default()
                     },
@@ -38,7 +40,7 @@ pub fn spawn_vertices(
                 },
                 Stroke::new(app_settings.baseline_color, 15.),
                 Fill::color(app_settings.background_color),
-                Vertex(i),
+                Vertex(vertex_number),
                 PickableBundle::default(),
                 On::<Pointer<Drag>>::run(drag_vertex),
                 On::<Pointer<DragStart>>::run(begin_arc_creation),
@@ -65,6 +67,16 @@ pub fn spawn_vertices(
                 ..default()
             },));
         });
+    }
+}
+
+pub fn spawn_vertices(
+    mut commands: Commands,
+    network: Res<NetworkWrapper>,
+    app_settings: Res<AppSettings>,
+) {
+    for (i, vertex) in network.n.vertices.iter().enumerate() {
+        Vertex::spawn(i, vertex, &mut commands, &app_settings);
     }
 }
 
@@ -138,5 +150,42 @@ fn drag_vertex(
         arrow.translation.x = arrow_translation.x;
         arrow.translation.y = arrow_translation.y;
         arrow.rotation = arc.get_arrow_rotation();
+    }
+}
+
+pub fn create_vertex(
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    input_query: Query<
+        Option<&PickingInteraction>,
+        (With<BackgroundMarker>, Changed<PickingInteraction>),
+    >,
+    world_coords: Res<WorldCoords>,
+    mut network: ResMut<NetworkWrapper>,
+    app_settings: Res<AppSettings>,
+    mut commands: Commands,
+) {
+    if !mouse_input.just_pressed(MouseButton::Right) {
+        return;
+    }
+    let Ok(Some(PickingInteraction::Pressed)) = input_query.get_single() else {
+        return;
+    };
+
+    let vertex = robmcf_greedy::Vertex {
+        name: format!("v{}", network.num_vertices),
+        x: world_coords.0.x,
+        y: world_coords.0.y,
+    };
+    Vertex::spawn(network.num_vertices, &vertex, &mut commands, &app_settings);
+    network.num_vertices += 1;
+
+    let row = vec![0; network.num_vertices - 1];
+    let column = vec![0; network.num_vertices];
+
+    network.n.vertices.push(vertex);
+    network.n.capacities.extend(&row, &column);
+    network.n.costs.extend(&row, &column);
+    for balance in &mut network.n.balances {
+        balance.extend(&row, &column);
     }
 }

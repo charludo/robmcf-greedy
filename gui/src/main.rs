@@ -1,37 +1,39 @@
 use bevy::prelude::*;
+use bevy::window::PresentMode;
 use bevy_mod_picking::prelude::*;
+use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_prototype_lyon::prelude::*;
-mod camera;
+use robmcf_greedy::Network;
+use shared::*;
 
+mod camera;
 mod network;
 mod shared;
 
 use camera::CameraPlugin;
 use network::NetworkPlugin;
 
-use bevy::window::PresentMode;
-use bevy_mod_picking::DefaultPickingPlugins;
-use robmcf_greedy::Network;
-use shared::*;
-
 #[derive(Resource)]
 struct NetworkWrapper {
     n: Network,
+    num_vertices: usize,
 }
 
 fn main() {
+    let n = Network::from_random(
+        20,       // num_vertices,
+        0.1,      // connectedness,
+        0.3,      // supply_density,
+        2,        // num_scenarios,
+        (3, 8),   // range_supply,
+        (15, 40), // range_capacity,
+        (4, 8),   // range_cost,
+        5,        // num_fixed_arcs,
+    );
+    // let n = Network::from_file("examples/network.json");
     let network = NetworkWrapper {
-        n: Network::from_random(
-            20,       // num_vertices,
-            0.1,      // connectedness,
-            0.3,      // supply_density,
-            2,        // num_scenarios,
-            (3, 8),   // range_supply,
-            (15, 40), // range_capacity,
-            (4, 8),   // range_cost,
-            5,        // num_fixed_arcs,
-        ),
-        // n: Network::from_file("examples/network.json"),
+        num_vertices: n.vertices.len(),
+        n,
     };
     println!("{}", network.n);
 
@@ -67,12 +69,10 @@ fn main() {
         .insert_resource(network)
         .insert_resource(app_settings)
         .add_plugins(ShapePlugin)
+        // .add_plugins(BackdropBackend)
         .add_plugins(CameraPlugin)
         .add_plugins(NetworkPlugin)
-        .add_plugins(
-            DefaultPickingPlugins, // .build()
-                                   // .disable::<DebugPickingPlugin>(),
-        )
+        .add_plugins(DefaultPickingPlugins)
         .insert_resource(DebugPickingMode::Normal)
         .run();
 }

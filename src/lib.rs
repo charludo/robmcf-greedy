@@ -4,3 +4,4 @@ mod network;
 mod util;
 
 pub use network::Network;
+pub use network::Vertex;

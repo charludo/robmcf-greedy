@@ -9,4 +9,4 @@ mod vertex;
 
 pub(super) use auxiliary_network::AuxiliaryNetwork;
 pub use network::*;
-pub(super) use vertex::Vertex;
+pub use vertex::Vertex;
