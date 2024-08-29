@@ -1,5 +1,6 @@
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use simple_easing::cubic_in_out;
 
 pub struct CameraPlugin;
@@ -13,6 +14,7 @@ impl Plugin for CameraPlugin {
                 stop_dragging,
                 set_zoom_scale,
                 animate_zoom_scale,
+                update_world_coords,
             ),
         );
     }
@@ -28,6 +30,9 @@ pub struct Zoom {
 #[derive(Component)]
 pub struct CameraMarker;
 
+#[derive(Resource, Default)]
+pub struct WorldCoords(pub Vec2);
+
 fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle::default(),
@@ -38,6 +43,24 @@ fn spawn_camera(mut commands: Commands) {
         },
         CameraMarker,
     ));
+    commands.insert_resource(WorldCoords::default());
+}
+
+fn update_world_coords(
+    mut world_coords: ResMut<WorldCoords>,
+    query_window: Query<&Window, With<PrimaryWindow>>,
+    query_camera: Query<(&Camera, &GlobalTransform), With<CameraMarker>>,
+) {
+    let (camera, camera_transform) = query_camera.single();
+    let window = query_window.single();
+
+    if let Some(world_position) = window
+        .cursor_position()
+        .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+        .map(|ray| ray.origin.truncate())
+    {
+        world_coords.0 = world_position;
+    }
 }
 
 #[derive(Component)]
