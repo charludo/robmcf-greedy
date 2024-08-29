@@ -69,7 +69,6 @@ fn main() {
         .insert_resource(network)
         .insert_resource(app_settings)
         .add_plugins(ShapePlugin)
-        // .add_plugins(BackdropBackend)
         .add_plugins(CameraPlugin)
         .add_plugins(NetworkPlugin)
         .add_plugins(DefaultPickingPlugins)

@@ -12,3 +12,4 @@ simple-easing = "1.0.1"
 robmcf_greedy = {path = "../"}
 # bevy_prototype_lyon = "0.12.0"
 bevy_prototype_lyon = { git = "https://github.com/Nilirad/bevy_prototype_lyon.git", branch = "master" }
+rand = "0.8.5"

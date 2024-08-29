@@ -2589,6 +2589,7 @@ dependencies = [
  "bevy_egui 0.29.0",
  "bevy_mod_picking",
  "bevy_prototype_lyon",
+ "rand",
  "robmcf_greedy",
  "simple-easing",
 ]

@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy_mod_picking::events::{DragEnd, DragEnter, DragLeave, DragStart, Pointer};
-use bevy_mod_picking::prelude::{Listener, PointerButton};
+use bevy_mod_picking::prelude::{Listener, Pickable, PointerButton};
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::prelude::*;
+use rand::Rng;
 
 use crate::network::vertex::*;
 use crate::{shared::*, NetworkWrapper};
@@ -66,16 +67,18 @@ impl Arc {
         &self,
     ) -> (
         (ShapeBundle, Stroke, Arc, PickableBundle),
-        (ShapeBundle, Stroke, Fill, Arrow),
+        (ShapeBundle, Stroke, Fill, Arrow, PickableBundle),
     ) {
+        let mut rng = rand::thread_rng();
+        let rand_offset = rng.gen_range(0.01..0.5);
+
         let line = (
             ShapeBundle {
                 path: self.get_path(),
                 spatial: SpatialBundle {
-                    transform: Transform {
-                        translation: (Vec2::ZERO.extend(self.layer)),
-                        ..default()
-                    },
+                    transform: Transform::from_translation(
+                        Vec2::ZERO.extend(self.layer + rand_offset),
+                    ),
                     ..default()
                 },
                 ..default()
@@ -96,7 +99,9 @@ impl Arc {
                 path: GeometryBuilder::build_as(&shape),
                 spatial: SpatialBundle {
                     transform: Transform {
-                        translation: self.get_arrow_translation().extend(self.layer),
+                        translation: self
+                            .get_arrow_translation()
+                            .extend(self.layer + rand_offset + 0.001),
                         rotation: self.get_arrow_rotation(),
                         ..default()
                     },
@@ -107,6 +112,13 @@ impl Arc {
             Stroke::new(self.color, (0.5 * self.line_width).max(6.)),
             Fill::color(self.color),
             Arrow,
+            PickableBundle {
+                pickable: Pickable {
+                    should_block_lower: false,
+                    is_hoverable: false,
+                },
+                ..default()
+            },
         );
 
         (line, arrow)

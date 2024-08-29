@@ -32,7 +32,7 @@ impl Vertex {
                         transform: Transform::from_translation(Vec3::new(
                             vertex.x,
                             vertex.y,
-                            app_settings.vertex_layer + vertex_number as f32 * 0.001,
+                            app_settings.vertex_layer + vertex_number as f32 * 0.01,
                         )),
                         ..default()
                     },
@@ -60,7 +60,11 @@ impl Vertex {
                     },
                 ),
                 transform: Transform {
-                    translation: Vec3::new(0., 0., 0.001),
+                    translation: Vec3::new(
+                        0.,
+                        0.,
+                        app_settings.vertex_layer + vertex_number as f32 * 0.01 + 0.01,
+                    ),
                     scale: Vec3::new(0.2, 0.2, 0.2),
                     ..default()
                 },
