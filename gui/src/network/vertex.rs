@@ -60,11 +60,7 @@ impl Vertex {
                     },
                 ),
                 transform: Transform {
-                    translation: Vec3::new(
-                        0.,
-                        0.,
-                        app_settings.vertex_layer + vertex_number as f32 * 0.01 + 0.01,
-                    ),
+                    translation: Vec3::new(0., 0., 0.001),
                     scale: Vec3::new(0.2, 0.2, 0.2),
                     ..default()
                 },
