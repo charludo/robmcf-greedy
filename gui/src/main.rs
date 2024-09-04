@@ -72,6 +72,6 @@ fn main() {
         .add_plugins(CameraPlugin)
         .add_plugins(NetworkPlugin)
         .add_plugins(DefaultPickingPlugins)
-        .insert_resource(DebugPickingMode::Normal)
+        // .insert_resource(DebugPickingMode::Normal)
         .run();
 }
