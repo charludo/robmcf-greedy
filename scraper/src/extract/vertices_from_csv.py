@@ -40,22 +40,18 @@ def search_location(client, s):
     )["candidates"][0]["geometry"]["location"]
 
 
-def generate_missing_vertices(tracks, out_file):
+def generate_missing_vertices(tracks, center, out_file):
     """
     Uses google maps to generate coordinates for all so-far unknown origin vertices.
     For vertices starting with "StrUeb", use the target vertices, since these track segments are
     usually short and their location is not publicly accessible.
 
     If no result can be found, ask the user for search input.
+    The "center" argument is subtracted from coordinates to center the graphical representation.
 
     Returns a list of all vertices.
     """
     gmaps = init_maps_api()
-    centered_on = {
-        "lat": 51.9,
-        "lng": 6.7,
-    }  # Just so the graph representation isn't way off to one side
-
     vertices = {}
 
     if Path(out_file).is_file():
@@ -85,8 +81,8 @@ def generate_missing_vertices(tracks, out_file):
 
             vertices[s] = {
                 "name": s,
-                "x": str(round((geolocation["lat"] - centered_on["lat"]) * 100)),
-                "y": str(round((geolocation["lng"] - centered_on["lng"]) * 100)),
+                "x": str(round((geolocation["lat"] - center["lat"]) * 100)),
+                "y": str(round((geolocation["lng"] - center["lng"]) * 100)),
             }
 
             with open(out_file, "a", encoding="utf-8") as f:
