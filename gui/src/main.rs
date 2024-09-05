@@ -20,17 +20,17 @@ struct NetworkWrapper {
 }
 
 fn main() {
-    let n = Network::from_random(
-        20,       // num_vertices,
-        0.1,      // connectedness,
-        0.3,      // supply_density,
-        2,        // num_scenarios,
-        (3, 8),   // range_supply,
-        (15, 40), // range_capacity,
-        (4, 8),   // range_cost,
-        5,        // num_fixed_arcs,
-    );
-    // let n = Network::from_file("examples/network.json");
+    // let n = Network::from_random(
+    //     20,       // num_vertices,
+    //     0.1,      // connectedness,
+    //     0.3,      // supply_density,
+    //     2,        // num_scenarios,
+    //     (3, 8),   // range_supply,
+    //     (15, 40), // range_capacity,
+    //     (4, 8),   // range_cost,
+    //     5,        // num_fixed_arcs,
+    // );
+    let n = Network::from_file("scraper/output/network_aachen_neuss.json");
     let network = NetworkWrapper {
         num_vertices: n.vertices.len(),
         n,

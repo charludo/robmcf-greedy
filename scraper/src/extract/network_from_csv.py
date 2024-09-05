@@ -2,20 +2,28 @@
 Generate a network in the format expected by the solver from the preprocessed data
 """
 
+import html
 import json
 import math
 
 from .util import TrackType
 
 
-def generate_network(vertices, tracks, out_file):
+# pylint: disable=too-many-locals
+def generate_network(vertices, tracks, center, out_file):
     """
     Using the pre-processed tracks and vertices, generate a network.
     Dump this as JSON in the format the solver understands.
 
     Costs are averaged over capacities when multiple tracks with the same source and sink exist.
+    The "center" argument is subtracted from coordinates to center the graphical representation.
     """
-    vertex_ids = {v["name"]: i for i, v in enumerate(vertices)}
+    vertices_used = {
+        name: vertex
+        for name, vertex in vertices.items()
+        if list((filter(lambda t, name=name: name in [t["s"], t["t"]], tracks)))
+    }
+    vertex_ids = {v: i for i, v in enumerate(vertices_used)}
 
     capacities = [[0 for _ in vertex_ids] for _ in vertex_ids]
     costs = [[0 for _ in vertex_ids] for _ in vertex_ids]
@@ -55,8 +63,16 @@ def generate_network(vertices, tracks, out_file):
         costs[s][t] += average_cost_to
         costs[t][s] += average_cost_rev
 
+    vertices_used = [
+        {
+            "name": html.unescape(vertex["name"]),
+            "x": (float(vertex["x"]) - center["x"]) * 10000,
+            "y": (float(vertex["y"]) - center["y"]) * 10000,
+        }
+        for vertex in vertices_used.values()
+    ]
     network = {
-        "vertices": list(vertices),
+        "vertices": vertices_used,
         "capacities": capacities,
         "costs": costs,
         "balances": [],  # todo: how to generate these?

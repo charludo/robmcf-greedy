@@ -19,8 +19,10 @@ def _generate(keymap, center, in_file, out_file):
         reader = list(csv.reader(f))
     tracks = [clean(row) for row in reader[1:]]
     Path("output/temp_isr_extracted.csv").unlink()
-    vertices = generate_missing_vertices(tracks, center, "output/vertices.csv")
-    return generate_network(vertices, tracks, out_file)
+    vertices = generate_missing_vertices(tracks, "output/vertices.csv")
+    network = generate_network(vertices, tracks, center, out_file)
+
+    print(f"Generated network with {len(network['vertices'])} vertices.")
 
 
 def generate_full():
@@ -35,7 +37,29 @@ def generate_full():
         "Höchstgeschwindigkeit": 2483,
         "Bremsweg": 2546,
     }
-    center = {"lat": 51.9, "lng": 6.7}
-    _ = _generate(
-        keymap, center, "input/isr_export_full.html", "output/network_full.json"
+    center = {"x": 6.7, "y": 51.9}
+    _generate(keymap, center, "input/isr_export_full.html", "output/network_full.json")
+
+
+def generate_aachen_neuss():
+    """
+    Generate the network roughly spanning Aachen in the south-west to Neuss in the north-east.
+    """
+    keymap = {
+        "Streckennummer": 1322,
+        "Streckenabschnitt": 1323,
+        "Gleisart": 1330,
+        "Länge": 1338,
+        "Höchstgeschwindigkeit": 1342,
+        "Bremsweg": 1405,
+    }
+    center = {"x": 6.4, "y": 50.9}
+    _generate(
+        keymap,
+        center,
+        "input/isr_export_aachen_neuss.html",
+        "output/network_aachen_neuss.json",
     )
+
+
+generate_aachen_neuss()

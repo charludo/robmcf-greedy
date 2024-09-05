@@ -8,8 +8,6 @@ from pathlib import Path
 
 import googlemaps
 
-from .util import clean
-
 
 def init_maps_api():
     """
@@ -40,14 +38,13 @@ def search_location(client, s):
     )["candidates"][0]["geometry"]["location"]
 
 
-def generate_missing_vertices(tracks, center, out_file):
+def generate_missing_vertices(tracks, out_file):
     """
     Uses google maps to generate coordinates for all so-far unknown origin vertices.
     For vertices starting with "StrUeb", use the target vertices, since these track segments are
     usually short and their location is not publicly accessible.
 
     If no result can be found, ask the user for search input.
-    The "center" argument is subtracted from coordinates to center the graphical representation.
 
     Returns a list of all vertices.
     """
@@ -79,14 +76,10 @@ def generate_missing_vertices(tracks, center, out_file):
                 except IndexError:
                     name = input(f"Not found. Please enter search term for {s}: ")
 
-            vertices[s] = {
-                "name": s,
-                "x": str(round((geolocation["lat"] - center["lat"]) * 100)),
-                "y": str(round((geolocation["lng"] - center["lng"]) * 100)),
-            }
+            vertices[s] = {"name": s, "x": geolocation["lng"], "y": geolocation["lat"]}
 
             with open(out_file, "a", encoding="utf-8") as f:
                 writer = csv.writer(f, quoting=csv.QUOTE_ALL)
                 writer.writerow(vertices[s].values())
 
-    return vertices.values()
+    return vertices
