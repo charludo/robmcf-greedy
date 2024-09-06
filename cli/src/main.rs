@@ -61,12 +61,12 @@ fn main() {
         Commands::Benchmark { iterations, .. } => run_benchmark(&network, *iterations),
         Commands::Random { output, .. } => {
             network.preprocess();
-            network.solve();
-            network.validate_solution();
-            println!("{}", network);
             if let Some(file) = output {
                 network.serialize(&file);
             }
+            network.solve();
+            network.validate_solution();
+            println!("{}", network);
         }
         Commands::Solve { .. } => {
             network.preprocess();
