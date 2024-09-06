@@ -75,6 +75,13 @@ impl<T> Matrix<T> {
         }
     }
 
+    pub fn empty() -> Self
+    where
+        T: Clone,
+    {
+        Matrix(Array2D::from_rows(&Vec::new()).unwrap())
+    }
+
     pub fn apply_mask(&self, mask: &Matrix<bool>, bottom: T) -> Self
     where
         T: Clone,

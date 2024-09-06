@@ -1,5 +1,9 @@
 use crate::matrix::Matrix;
 
+use clap::ValueEnum;
+
+#[derive(ValueEnum, Debug, Clone)]
+#[clap(rename_all = "kebab-case")]
 pub enum SlackFunction {
     BalanceMin,
     DifferenceToMax,

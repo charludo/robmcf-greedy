@@ -9,7 +9,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
     let barrier = Arc::new(Barrier::new(num_threads));
     ThreadPoolBuilder::new()
         .num_threads(num_threads)
-        .build_global()
+        .build()
         .unwrap();
 
     while network.exists_supply() {

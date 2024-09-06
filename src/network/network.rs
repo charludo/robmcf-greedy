@@ -1,4 +1,4 @@
-use crate::{algorithms::greedy, matrix::Matrix};
+use crate::{algorithms::greedy, matrix::Matrix, Options};
 use core::panic;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -6,7 +6,7 @@ use std::{fmt::Display, fs::File, io::BufReader};
 
 use super::{auxiliary_network::AuxiliaryNetwork, solution::Solution, vertex::Vertex};
 
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct Network {
     pub vertices: Vec<Vertex>,
     pub capacities: Matrix<usize>,
@@ -17,10 +17,13 @@ pub struct Network {
     pub(crate) solution: Option<Solution>,
     #[serde(skip)]
     pub(crate) auxiliary_network: Option<Box<AuxiliaryNetwork>>,
+
+    #[serde(skip)]
+    pub options: Options,
 }
 
 impl Network {
-    pub fn from_file(filename: &str) -> Self {
+    pub fn from_file(options: &Options, filename: &str) -> Self {
         let file = match File::open(filename) {
             Ok(result) => result,
             Err(msg) => panic!("Failed to open file \"{}\": {}", filename, msg),
@@ -28,10 +31,13 @@ impl Network {
         let reader = BufReader::new(file);
 
         log::debug!("Deserializing network from {}", filename);
-        match serde_json::from_reader(reader) {
+        let mut network: Network = match serde_json::from_reader(reader) {
             Ok(result) => result,
             Err(msg) => panic!("Failed to parse the network: {}", msg),
-        }
+        };
+
+        network.options = options.clone();
+        network
     }
 
     pub fn serialize(&self, filename: &str) {

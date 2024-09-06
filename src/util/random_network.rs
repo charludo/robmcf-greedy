@@ -1,8 +1,13 @@
-use crate::{matrix::Matrix, network::Network, network::Vertex};
+use crate::{
+    matrix::Matrix,
+    network::{Network, Vertex},
+    Options,
+};
 use rand::Rng;
 
 impl Network {
     pub fn from_random(
+        options: &Options,
         num_vertices: usize,
         connectedness: f64,
         supply_density: f64,
@@ -37,6 +42,7 @@ impl Network {
             fixed_arcs,
             auxiliary_network: None,
             solution: None,
+            options: options.clone(),
         }
     }
 }

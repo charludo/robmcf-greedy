@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Display};
 
 use super::{b_tuple::BTuple, network_state::NetworkState};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Scenario {
     pub(crate) id: usize,
     pub(crate) b_tuples_free: Vec<Box<BTuple>>,

@@ -1,7 +1,7 @@
 mod algorithms;
 mod matrix;
 mod network;
-mod options;
+pub mod options;
 mod util;
 
 pub use network::Network;

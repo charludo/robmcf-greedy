@@ -13,7 +13,7 @@ use super::{
     Network,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct AuxiliaryNetwork {
     pub(crate) fixed_arcs: Vec<usize>,
     pub(crate) fixed_arcs_memory: HashMap<usize, (usize, usize)>,
@@ -148,10 +148,13 @@ impl From<&Network> for AuxiliaryNetwork {
 
         // intermediate arc sets only need to be computed once. Their sole purpose is to act as a
         // mask on capacities when Floyd-Warshall is refreshed in the greedy iterations.
-        let arc_sets =
-            generate_intermediate_arc_sets(&distance_map, &costs, &capacities, |x| 2 * x); // TODO: get d
-                                                                                           // from
-                                                                                           // somewehere...
+        let arc_sets = generate_intermediate_arc_sets(
+            &distance_map,
+            &costs,
+            &capacities,
+            &network.options.delta_fn,
+        );
+
         balances.iter().enumerate().for_each(|(i, balance)| {
             let network_state = NetworkState {
                 intermediate_arc_sets: arc_sets.clone(),

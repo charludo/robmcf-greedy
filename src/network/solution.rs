@@ -5,7 +5,7 @@ use crate::matrix::Matrix;
 
 use super::Network;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Solution {
     pub(crate) arc_loads: Vec<Matrix<usize>>,
     pub(crate) slack: Vec<usize>,

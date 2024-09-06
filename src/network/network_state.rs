@@ -5,7 +5,7 @@ use crate::{
     matrix::Matrix,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct NetworkState {
     pub(crate) intermediate_arc_sets: Matrix<Matrix<bool>>,
     pub(crate) fixed_arcs: Matrix<Vec<usize>>,

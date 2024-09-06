@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::matrix::Matrix;
+use crate::{matrix::Matrix, options::DeltaFunction};
 
 use super::b_tuple::BTuple;
 
@@ -35,7 +35,7 @@ pub(super) fn generate_intermediate_arc_sets(
     dist: &Matrix<usize>,
     costs: &Matrix<usize>,
     capacities: &Matrix<usize>,
-    delta_fn: fn(usize) -> usize,
+    delta_fn: &DeltaFunction,
 ) -> Matrix<Matrix<bool>> {
     let m = dist.num_rows();
     let mut arc_sets = Matrix::filled_with(Matrix::filled_with(false, m, m), m, m);
@@ -72,8 +72,8 @@ pub(super) fn generate_intermediate_arc_sets(
     Matrix::from_elements(&arc_sets.elements().map(|x| x.clone()).collect(), m, m)
 }
 
-fn delta(delta_fn: fn(usize) -> usize, dist: &Matrix<usize>, s: usize, t: usize) -> usize {
-    delta_fn(*dist.get(s, t))
+fn delta(delta_fn: &DeltaFunction, dist: &Matrix<usize>, s: usize, t: usize) -> usize {
+    delta_fn.apply(*dist.get(s, t))
 }
 
 #[cfg(test)]
