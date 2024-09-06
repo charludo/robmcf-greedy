@@ -1,25 +1,44 @@
 use std::collections::HashMap;
 
-use crate::{matrix::Matrix, options::DeltaFunction};
+use crate::{
+    matrix::Matrix,
+    options::{DeltaFunction, RemainderSolveMethod},
+};
 
 use super::b_tuple::BTuple;
 
 pub(super) fn generate_b_tuples(
     supply: &Matrix<usize>,
+    remainder_method: RemainderSolveMethod,
+    fixed_arc_count: usize,
+    arc_sets: &Matrix<Matrix<bool>>,
 ) -> (Vec<Box<BTuple>>, HashMap<usize, Vec<Box<BTuple>>>) {
     let mut free: Vec<Box<BTuple>> = vec![];
     supply
         .indices()
         .filter(|(s, t)| s != t && *supply.get(*s, *t) > 0)
         .for_each(|(s, t)| {
+            // Unless the remainder method is greedy, skip (s, t) pairs which cannot be routed via
+            // at least one fixed arc
+            match remainder_method {
+                RemainderSolveMethod::Greedy => {}
+                _ => {
+                    let arc_set = arc_sets.get(s, t);
+                    if !arc_set.as_columns()[arc_set.num_columns() - fixed_arc_count..]
+                        .iter()
+                        .any(|c| c.iter().any(|&e| e))
+                    {
+                        log::debug!("Skipped BTuple for ({s}, {t}) because it cannot be routed via any fixed arc.");
+                        return;
+                    }
+                }
+            }
+
             let b_tuple = Box::new(BTuple { origin: s, s, t });
 
             log::debug!(
-                "Generated {} BTuples for {} -> {}:\n{}",
+                "Generated {} BTuples for ({s}, {t}):\n{b_tuple}",
                 *supply.get(s, t),
-                s,
-                t,
-                b_tuple,
             );
 
             // we are working with single units of supply in order to prevent dead ends,
@@ -98,8 +117,12 @@ mod tests {
             3,
             3,
         );
-        let actual_result =
-            generate_intermediate_arc_sets(&distance_map, &costs, &capacities, |x| 2 * x);
+        let actual_result = generate_intermediate_arc_sets(
+            &distance_map,
+            &costs,
+            &capacities,
+            &DeltaFunction::LinearMedium,
+        );
         let actual_result_0_1 = actual_result.get(0, 1).clone();
 
         assert_eq!(expected_result_0_1, actual_result_0_1);
@@ -109,7 +132,8 @@ mod tests {
     fn test_generate_b_tuples() {
         let supply: Matrix<usize> = Matrix::from_elements(&vec![0, 2, 1, 1, 0, 1, 0, 6, 0], 3, 3);
 
-        let actual_result = generate_b_tuples(&supply);
+        let actual_result =
+            generate_b_tuples(&supply, RemainderSolveMethod::Greedy, 0, &Matrix::empty());
 
         assert_eq!(11, actual_result.0.len());
         assert!(actual_result.1.is_empty());

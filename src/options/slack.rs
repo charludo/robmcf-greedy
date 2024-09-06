@@ -7,7 +7,7 @@ use clap::ValueEnum;
 pub enum SlackFunction {
     BalanceMin,
     DifferenceToMax,
-    DifferenceToMaxPlusBalanceMin,
+    DifferenceToMaxPlusMin,
 }
 
 impl SlackFunction {
@@ -15,7 +15,7 @@ impl SlackFunction {
         match self {
             SlackFunction::BalanceMin => vec![Self::min_balance(balances); balances.len()],
             SlackFunction::DifferenceToMax => Self::differences(balances, 0),
-            SlackFunction::DifferenceToMaxPlusBalanceMin => {
+            SlackFunction::DifferenceToMaxPlusMin => {
                 Self::differences(balances, Self::min_balance(balances))
             }
         }

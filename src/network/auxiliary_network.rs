@@ -155,6 +155,7 @@ impl From<&Network> for AuxiliaryNetwork {
             &network.options.delta_fn,
         );
 
+        let slack = network.options.slack_fn.apply(&balances);
         balances.iter().enumerate().for_each(|(i, balance)| {
             let network_state = NetworkState {
                 intermediate_arc_sets: arc_sets.clone(),
@@ -168,12 +169,18 @@ impl From<&Network> for AuxiliaryNetwork {
                 relative_draws: HashMap::new(),
             };
 
-            let (b_tuples_free, b_tuples_fixed) = generate_b_tuples(&balance);
+            let (b_tuples_free, b_tuples_fixed) = generate_b_tuples(
+                &balance,
+                network.options.remainder_solve_method.clone(),
+                network.fixed_arcs.len(),
+                &arc_sets,
+            );
             let scenario = Scenario {
                 id: i,
                 b_tuples_free,
                 b_tuples_fixed,
-                slack: 0,
+                slack: slack[i],
+                slack_used: 0,
                 network_state,
             };
             log::debug!("Generated {}", scenario);

@@ -119,7 +119,7 @@ impl Network {
         self.solution = match auxiliary_network {
             Some(mut aux) => {
                 log::debug!("Found auxiliary network, calling greedy on it...");
-                greedy(&mut aux);
+                greedy(&mut aux, &self.options);
                 self.auxiliary_network = Some(aux);
                 Some(Solution::from(&*self))
             }
@@ -198,7 +198,7 @@ impl Display for Network {
                 .join(", ")
         ));
         string_repr.push(match &self.solution {
-            Some(solution) => format!("{}", solution),
+            Some(solution) => format!("{}\n{}", solution, &self.options.remainder_solve_method),
             None => "Solution has not been calculated yet.".to_string(),
         });
         write!(f, "{}", string_repr.join("\n"))

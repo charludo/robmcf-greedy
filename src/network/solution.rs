@@ -9,7 +9,9 @@ use super::Network;
 pub(crate) struct Solution {
     pub(crate) arc_loads: Vec<Matrix<usize>>,
     pub(crate) slack: Vec<usize>,
+    pub(crate) slack_used: Vec<usize>,
     pub(crate) costs: Vec<usize>,
+    pub(crate) network_cost: usize,
     arc_loads_repr: Vec<Matrix<ColoredString>>,
 }
 
@@ -18,6 +20,7 @@ impl From<&Network> for Solution {
         let mut arc_loads: Vec<Matrix<usize>> = Vec::new();
         let mut arc_loads_repr: Vec<Matrix<ColoredString>> = Vec::new();
         let mut slack: Vec<usize> = Vec::new();
+        let mut slack_used: Vec<usize> = Vec::new();
         let mut costs: Vec<usize> = Vec::new();
         if let Some(auxiliary_network) = &network.auxiliary_network {
             auxiliary_network.scenarios.iter().for_each(|scenario| {
@@ -32,6 +35,7 @@ impl From<&Network> for Solution {
                 });
                 scenario_arc_loads.shrink(auxiliary_network.fixed_arcs.len());
                 slack.push(scenario.slack);
+                slack_used.push(scenario.slack_used);
                 costs.push(scenario_arc_loads.hadamard_product(&network.costs).sum());
                 let mut scenario_arc_loads_str = Matrix::from_elements(
                     &scenario_arc_loads
@@ -55,8 +59,10 @@ impl From<&Network> for Solution {
         Solution {
             arc_loads,
             arc_loads_repr,
+            network_cost: network.options.cost_fn.apply(&costs),
             costs,
             slack,
+            slack_used,
         }
     }
 }
@@ -65,14 +71,19 @@ impl Display for Solution {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "The following arc loads constitute the solution:\n{}",
+            "The following arc loads constitute the solution:\n{}\nThe network cost is {}.",
             (0..self.arc_loads.len())
                 .map(|i| format!(
-                    "Scenario {}, with cost {} and {} slack:\n{}",
-                    i, self.costs[i], self.slack[i], self.arc_loads_repr[i]
+                    "Scenario {}, with cost {} and {}/{} slack used:\n{}",
+                    i,
+                    self.costs[i],
+                    self.slack_used[i],
+                    self.slack[i] + self.slack_used[i],
+                    self.arc_loads_repr[i]
                 ))
                 .collect::<Vec<String>>()
-                .join("\n")
+                .join("\n"),
+            self.network_cost
         )
     }
 }

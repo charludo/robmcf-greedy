@@ -2,9 +2,9 @@ use std::sync::{Arc, Barrier};
 
 use rayon::{iter::ParallelIterator, ThreadPoolBuilder};
 
-use crate::network::AuxiliaryNetwork;
+use crate::{network::AuxiliaryNetwork, Options};
 
-pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
+pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
     let num_threads = network.scenarios.len();
     let barrier = Arc::new(Barrier::new(num_threads));
     ThreadPoolBuilder::new()
@@ -22,7 +22,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
 
         scenarios.par_iter_mut().for_each(|mut entry| {
             let (_, scenario) = entry.pair_mut();
-            scenario.refresh_relative_draws(&waiting_at_fixed_arcs);
+            scenario.refresh_relative_draws(&waiting_at_fixed_arcs, &options.relative_draw_fn);
 
             scenario.b_tuples_free.retain_mut(|b_tuple| {
                 let next_vertex =
@@ -66,7 +66,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork) {
                     *consistent_flows_to_move.get(fixed_arc).unwrap_or(&0);
                 if consistent_flow_to_move == 0 && !exists_free_supply {
                     consistent_flow_to_move = scenario.waiting_at(*fixed_arc);
-                    scenario.slack += consistent_flow_to_move;
+                    scenario.use_slack(consistent_flow_to_move);
                 };
 
                 if consistent_flow_to_move == 0 {
