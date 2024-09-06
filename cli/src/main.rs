@@ -9,7 +9,9 @@ use util::*;
 fn main() {
     let args = Args::parse();
 
-    let log_level = if args.debug {
+    let log_level = if args.quiet {
+        LevelFilter::Off
+    } else if args.debug {
         LevelFilter::Debug
     } else {
         match args.command {

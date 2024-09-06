@@ -12,6 +12,10 @@ pub(crate) struct Args {
     #[arg(short, long, global = true)]
     pub(crate) debug: bool,
 
+    /// Disable logging. Takes precendence over debug.
+    #[arg(short, long, global = true)]
+    pub(crate) quiet: bool,
+
     /// Function used to calculate the cost of the overall solution
     #[arg(long, value_enum, default_value_t = CostFunction::Max, global = true)]
     pub(crate) costs: CostFunction,
