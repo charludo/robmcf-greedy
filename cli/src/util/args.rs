@@ -12,7 +12,7 @@ pub(crate) struct Args {
     #[arg(short, long, global = true)]
     pub(crate) debug: bool,
 
-    /// Disable logging. Takes precendence over debug.
+    /// Disable logging. Takes precedence over debug.
     #[arg(short, long, global = true)]
     pub(crate) quiet: bool,
 
@@ -79,7 +79,7 @@ pub(crate) enum Commands {
         #[arg(long, default_value_t = 30)]
         umax: usize,
 
-        /// Minium arc cost
+        /// Minimum arc cost
         #[arg(long, default_value_t = 4)]
         cmin: usize,
 

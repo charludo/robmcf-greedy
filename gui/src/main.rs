@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PresentMode;
-use bevy_mod_picking::prelude::*;
+// use bevy_mod_picking::prelude::*;
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_prototype_lyon::prelude::*;
-use robmcf_greedy::Network;
+use robmcf_greedy::{Network, Options};
 use shared::*;
 
 mod camera;
@@ -30,7 +30,10 @@ fn main() {
     //     (4, 8),   // range_cost,
     //     5,        // num_fixed_arcs,
     // );
-    let n = Network::from_file("scraper/output/network_aachen_neuss.json");
+    let n = Network::from_file(
+        &Options::default(),
+        "../masterarbeit-scraper/output/network_aachen_neuss.json",
+    );
     let network = NetworkWrapper {
         num_vertices: n.vertices.len(),
         n,

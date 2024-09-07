@@ -48,8 +48,7 @@ impl Arc {
         let mut path_builder = PathBuilder::new();
         path_builder.move_to(self.s_pos);
         path_builder.quadratic_bezier_to(self.arc_point(), self.t_pos);
-        let path = path_builder.build();
-        path
+        path_builder.build()
     }
 
     pub fn get_arrow_translation(&self) -> Vec2 {
@@ -63,6 +62,7 @@ impl Arc {
         )
     }
 
+    #[allow(clippy::complexity)]
     pub fn spawn_arc(
         &self,
     ) -> (

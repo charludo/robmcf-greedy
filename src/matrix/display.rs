@@ -55,8 +55,7 @@ impl Display for Matrix<ColoredString> {
 impl Display for Matrix<usize> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let str_repr = Matrix::from_elements(
-            &self
-                .elements()
+            self.elements()
                 .map(|x| {
                     if *x == usize::MAX {
                         "?".to_string()
@@ -64,7 +63,8 @@ impl Display for Matrix<usize> {
                         x.to_string()
                     }
                 })
-                .collect(),
+                .collect::<Vec<_>>()
+                .as_slice(),
             self.num_rows(),
             self.num_columns(),
         );
@@ -75,7 +75,10 @@ impl Display for Matrix<usize> {
 impl Display for Matrix<bool> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let str_repr = Matrix::from_elements(
-            &self.elements().map(|x| (*x as usize).to_string()).collect(),
+            self.elements()
+                .map(|x| (*x as usize).to_string())
+                .collect::<Vec<_>>()
+                .as_slice(),
             self.num_rows(),
             self.num_columns(),
         );
@@ -89,13 +92,13 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
         let str_repr = Matrix::from_elements(
-            &self
-                .elements()
+            self.elements()
                 .map(|x| match x {
                     Some(e) => e.to_string(),
                     None => "?".to_string(),
                 })
-                .collect(),
+                .collect::<Vec<_>>()
+                .as_slice(),
             self.num_rows(),
             self.num_columns(),
         );

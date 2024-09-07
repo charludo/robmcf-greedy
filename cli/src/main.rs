@@ -54,8 +54,8 @@ fn main() {
             (*cmin, *cmax),
             *fixed,
         ),
-        Commands::Benchmark { file, .. } => Network::from_file(&options, &file),
-        Commands::Solve { file, .. } => Network::from_file(&options, &file),
+        Commands::Benchmark { file, .. } => Network::from_file(&options, file),
+        Commands::Solve { file, .. } => Network::from_file(&options, file),
     };
 
     network.validate_network();
@@ -64,7 +64,7 @@ fn main() {
         Commands::Random { output, .. } => {
             network.preprocess();
             if let Some(file) = output {
-                network.serialize(&file);
+                network.serialize(file);
             }
             network.solve();
             network.validate_solution();

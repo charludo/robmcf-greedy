@@ -26,7 +26,7 @@ impl From<&Network> for Solution {
             auxiliary_network.scenarios.iter().for_each(|scenario| {
                 let mut scenario_arc_loads = scenario.network_state.arc_loads.clone();
                 auxiliary_network.fixed_arcs.iter().for_each(|fixed_arc| {
-                    let original_arc = auxiliary_network.fixed_arcs_memory.get(&fixed_arc).unwrap();
+                    let original_arc = auxiliary_network.fixed_arcs_memory.get(fixed_arc).unwrap();
                     scenario_arc_loads.set(
                         original_arc.0,
                         original_arc.1,
@@ -37,11 +37,12 @@ impl From<&Network> for Solution {
                 slack.push(scenario.slack);
                 slack_used.push(scenario.slack_used);
                 costs.push(scenario_arc_loads.hadamard_product(&network.costs).sum());
-                let mut scenario_arc_loads_str = Matrix::from_elements(
-                    &scenario_arc_loads
+                let mut scenario_arc_loads_str: Matrix<ColoredString> = Matrix::from_elements(
+                    scenario_arc_loads
                         .elements()
                         .map(|x| x.to_string().white())
-                        .collect(),
+                        .collect::<Vec<_>>()
+                        .as_slice(),
                     scenario_arc_loads.num_rows(),
                     scenario_arc_loads.num_columns(),
                 );

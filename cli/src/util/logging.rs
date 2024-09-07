@@ -10,14 +10,8 @@ pub(crate) fn setup_logger(level: LevelFilter) {
                 buf,
                 "[{style}{}{style:#} {}:{}] - {} ",
                 record.level(),
-                match record.file() {
-                    Some(r) => r,
-                    None => "",
-                },
-                match record.line() {
-                    Some(r) => r.to_string(),
-                    None => "".to_string(),
-                },
+                record.file().unwrap_or_default(),
+                record.line().unwrap_or_default(),
                 record.args()
             )
         })

@@ -7,8 +7,8 @@ use super::{b_tuple::BTuple, network_state::NetworkState};
 #[derive(Debug, Clone)]
 pub(crate) struct Scenario {
     pub(crate) id: usize,
-    pub(crate) b_tuples_free: Vec<Box<BTuple>>,
-    pub(crate) b_tuples_fixed: HashMap<usize, Vec<Box<BTuple>>>,
+    pub(crate) b_tuples_free: Vec<BTuple>,
+    pub(crate) b_tuples_fixed: HashMap<usize, Vec<BTuple>>,
     pub(crate) slack: usize,
     pub(crate) slack_used: usize,
     pub(crate) network_state: NetworkState,

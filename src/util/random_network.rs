@@ -5,6 +5,7 @@ use crate::{
 };
 use rand::Rng;
 
+#[allow(clippy::too_many_arguments)]
 impl Network {
     pub fn from_random(
         options: &Options,
@@ -92,7 +93,7 @@ fn generate_random_matrix(
     let mut matrix = Matrix::from_rows(
         &(0..num_vertices)
             .map(|_| generate_random_vec(num_vertices, connectedness, range_values))
-            .collect(),
+            .collect::<Vec<Vec<usize>>>(),
     );
     for v in 0..num_vertices {
         matrix.set(v, v, 0);

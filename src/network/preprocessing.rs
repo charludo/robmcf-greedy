@@ -12,8 +12,8 @@ pub(super) fn generate_b_tuples(
     remainder_method: RemainderSolveMethod,
     fixed_arc_count: usize,
     arc_sets: &Matrix<Matrix<bool>>,
-) -> (Vec<Box<BTuple>>, HashMap<usize, Vec<Box<BTuple>>>) {
-    let mut free: Vec<Box<BTuple>> = vec![];
+) -> (Vec<BTuple>, HashMap<usize, Vec<BTuple>>) {
+    let mut free: Vec<BTuple> = vec![];
     supply
         .indices()
         .filter(|(s, t)| s != t && *supply.get(*s, *t) > 0)
@@ -34,7 +34,7 @@ pub(super) fn generate_b_tuples(
                 }
             }
 
-            let b_tuple = Box::new(BTuple { origin: s, s, t });
+            let b_tuple = BTuple { origin: s, s, t };
 
             log::debug!(
                 "Generated {} BTuples for ({s}, {t}):\n{b_tuple}",
@@ -63,7 +63,7 @@ pub(super) fn generate_intermediate_arc_sets(
         if s == t || *dist.get(s, t) == usize::MAX {
             continue;
         }
-        let max_path_length = delta(delta_fn, &dist, s, t);
+        let max_path_length = delta(delta_fn, dist, s, t);
         let arc_set = arc_sets.get_mut(s, t);
 
         for (x, y) in dist.indices() {
@@ -88,7 +88,11 @@ pub(super) fn generate_intermediate_arc_sets(
             arc_set
         );
     }
-    Matrix::from_elements(&arc_sets.elements().map(|x| x.clone()).collect(), m, m)
+    Matrix::from_elements(
+        arc_sets.elements().cloned().collect::<Vec<_>>().as_slice(),
+        m,
+        m,
+    )
 }
 
 fn delta(delta_fn: &DeltaFunction, dist: &Matrix<usize>, s: usize, t: usize) -> usize {
@@ -100,11 +104,9 @@ mod tests {
     use super::*;
 
     fn setup() -> (Matrix<usize>, Matrix<usize>, Matrix<usize>) {
-        let distance_map: Matrix<usize> =
-            Matrix::from_elements(&vec![0, 2, 1, 1, 0, 2, 2, 1, 0], 3, 3);
-        let costs: Matrix<usize> = Matrix::from_elements(&vec![0, 5, 1, 1, 0, 0, 0, 1, 0], 3, 3);
-        let capacities: Matrix<usize> =
-            Matrix::from_elements(&vec![0, 1, 1, 1, 0, 0, 0, 1, 0], 3, 3);
+        let distance_map: Matrix<usize> = Matrix::from_elements(&[0, 2, 1, 1, 0, 2, 2, 1, 0], 3, 3);
+        let costs: Matrix<usize> = Matrix::from_elements(&[0, 5, 1, 1, 0, 0, 0, 1, 0], 3, 3);
+        let capacities: Matrix<usize> = Matrix::from_elements(&[0, 1, 1, 1, 0, 0, 0, 1, 0], 3, 3);
 
         (distance_map, costs, capacities)
     }
@@ -113,7 +115,7 @@ mod tests {
     fn test_generate_intermediate_arc_sets() {
         let (distance_map, costs, capacities) = setup();
         let expected_result_0_1: Matrix<bool> = Matrix::from_elements(
-            &vec![false, false, true, false, false, false, false, true, false],
+            &[false, false, true, false, false, false, false, true, false],
             3,
             3,
         );

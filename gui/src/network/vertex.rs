@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_mod_picking::events::{Drag, DragEnd, DragEnter, DragLeave, DragStart, Pointer};
 use bevy_mod_picking::focus::PickingInteraction;
-use bevy_mod_picking::prelude::{Listener, On, Pickable, PointerButton};
+use bevy_mod_picking::prelude::{Listener, On, PointerButton};
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::prelude::*;
 
@@ -80,6 +80,7 @@ pub fn spawn_vertices(
     }
 }
 
+#[allow(clippy::complexity)]
 fn drag_vertex(
     drag: Listener<Pointer<Drag>>,
     mut query: Query<(&Vertex, &mut Transform)>,

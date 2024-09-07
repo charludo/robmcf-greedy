@@ -1,7 +1,5 @@
 use crate::{algorithms::greedy, matrix::Matrix, Options};
-use core::panic;
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::{fmt::Display, fs::File, io::BufReader};
 
 use super::{auxiliary_network::AuxiliaryNetwork, solution::Solution, vertex::Vertex};
@@ -16,7 +14,7 @@ pub struct Network {
     #[serde(skip)]
     pub(crate) solution: Option<Solution>,
     #[serde(skip)]
-    pub(crate) auxiliary_network: Option<Box<AuxiliaryNetwork>>,
+    pub(crate) auxiliary_network: Option<AuxiliaryNetwork>,
 
     #[serde(skip)]
     pub options: Options,
@@ -43,7 +41,7 @@ impl Network {
     pub fn serialize(&self, filename: &str) {
         let json_str = serde_json::to_string(self).unwrap();
         log::debug!("Writing\n{json_str}\nto {filename}");
-        std::fs::write(filename.to_string(), json_str).unwrap();
+        std::fs::write(filename, json_str).unwrap();
     }
 
     pub fn validate_network(&self) {
@@ -84,13 +82,11 @@ impl Network {
 
             let as_columns = matrix.as_columns();
             for (j, row) in matrix.as_rows().iter().enumerate() {
-                if row.into_iter().sum::<usize>()
-                    != as_columns[j].clone().into_iter().sum::<usize>()
-                {
+                if row.iter().sum::<usize>() != as_columns[j].clone().into_iter().sum::<usize>() {
                     log::warn!(
                         "Vertex {} has supply {}, but demand {} in scenario {}.",
                         self.vertices[j],
-                        row.into_iter().sum::<usize>(),
+                        row.iter().sum::<usize>(),
                         as_columns[j].clone().into_iter().sum::<usize>(),
                         i
                     );
@@ -109,7 +105,7 @@ impl Network {
         log::info!("Beginning to preprocess network.");
         match self.auxiliary_network {
             Some(_) => {}
-            None => self.auxiliary_network = Some(Box::new(AuxiliaryNetwork::from(&*self))),
+            None => self.auxiliary_network = Some(AuxiliaryNetwork::from(&*self)),
         }
     }
 
@@ -188,15 +184,15 @@ impl Display for Network {
         self.balances.iter().enumerate().for_each(|(i, b)| {
             string_repr.push(format!("{}.:\n{}", i, b));
         });
-        string_repr.push(format!("The following arcs have been marked as fixed:"));
-        string_repr.push(format!(
-            "{}",
+        string_repr.push("The following arcs have been marked as fixed:".to_string());
+        string_repr.push(
             self.fixed_arcs
                 .iter()
                 .map(|(s, t)| format!("({}->{})", self.vertices[*s], self.vertices[*t]))
                 .collect::<Vec<String>>()
                 .join(", ")
-        ));
+                .to_string(),
+        );
         string_repr.push(match &self.solution {
             Some(solution) => format!("{}\n{}", solution, &self.options.remainder_solve_method),
             None => "Solution has not been calculated yet.".to_string(),

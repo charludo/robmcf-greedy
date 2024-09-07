@@ -170,7 +170,7 @@ impl From<&Network> for AuxiliaryNetwork {
             };
 
             let (b_tuples_free, b_tuples_fixed) = generate_b_tuples(
-                &balance,
+                balance,
                 network.options.remainder_solve_method.clone(),
                 network.fixed_arcs.len(),
                 &arc_sets,
