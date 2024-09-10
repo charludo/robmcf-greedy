@@ -26,7 +26,7 @@ impl Default for Options {
             delta_fn: DeltaFunction::LinearMedium,
             relative_draw_fn: RelativeDrawFunction::Linear,
             slack_fn: SlackFunction::DifferenceToMax,
-            remainder_solve_method: RemainderSolveMethod::No,
+            remainder_solve_method: RemainderSolveMethod::None,
         }
     }
 }

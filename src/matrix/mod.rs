@@ -9,6 +9,15 @@ use array2d::Array2D;
 #[derive(Debug, Clone)]
 pub struct Matrix<T>(pub(super) Array2D<T>);
 
+impl<T> Default for Matrix<T>
+where
+    T: Clone,
+{
+    fn default() -> Self {
+        Matrix::empty()
+    }
+}
+
 impl<T> Matrix<T> {
     pub fn get(&self, row: usize, column: usize) -> &T {
         match self.0.get(row, column) {
@@ -202,6 +211,21 @@ impl Matrix<usize> {
 
     pub fn sum(&self) -> usize {
         self.elements().sum()
+    }
+
+    pub fn subtract(&self, other: &Matrix<usize>) -> Self {
+        assert!(self.num_rows() == other.num_rows());
+        assert!(self.num_columns() == other.num_columns());
+
+        Matrix::from_elements(
+            self.elements()
+                .zip(other.elements())
+                .map(|(a, b)| a.saturating_sub(*b))
+                .collect::<Vec<_>>()
+                .as_slice(),
+            self.num_rows(),
+            self.num_columns(),
+        )
     }
 
     pub fn hadamard_product(&self, other: &Matrix<usize>) -> Self {

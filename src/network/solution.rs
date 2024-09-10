@@ -7,11 +7,13 @@ use super::Network;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Solution {
-    pub(crate) arc_loads: Vec<Matrix<usize>>,
     pub(crate) slack: Vec<usize>,
     pub(crate) slack_used: Vec<usize>,
     pub(crate) costs: Vec<usize>,
     pub(crate) network_cost: usize,
+    pub(crate) arc_loads: Vec<Matrix<usize>>,
+    pub(crate) supply_total: Vec<usize>,
+    pub(crate) supply_remaining: Vec<Matrix<usize>>,
     arc_loads_repr: Vec<Matrix<ColoredString>>,
 }
 
@@ -22,6 +24,9 @@ impl From<&Network> for Solution {
         let mut slack: Vec<usize> = Vec::new();
         let mut slack_used: Vec<usize> = Vec::new();
         let mut costs: Vec<usize> = Vec::new();
+        let mut supply_total: Vec<usize> = Vec::new();
+        let mut supply_remaining: Vec<Matrix<usize>> = Vec::new();
+
         if let Some(auxiliary_network) = &network.auxiliary_network {
             auxiliary_network.scenarios.iter().for_each(|scenario| {
                 let mut scenario_arc_loads = scenario.network_state.arc_loads.clone();
@@ -55,6 +60,11 @@ impl From<&Network> for Solution {
                 });
                 arc_loads.push(scenario_arc_loads);
                 arc_loads_repr.push(scenario_arc_loads_str);
+
+                let mut remaining_supply = scenario.remaining_supply.clone();
+                remaining_supply.shrink(auxiliary_network.fixed_arcs.len());
+                supply_total.push(network.balances[scenario.id].sum());
+                supply_remaining.push(remaining_supply);
             });
         };
         Solution {
@@ -64,6 +74,8 @@ impl From<&Network> for Solution {
             costs,
             slack,
             slack_used,
+            supply_total,
+            supply_remaining,
         }
     }
 }
@@ -75,11 +87,13 @@ impl Display for Solution {
             "The following arc loads constitute the solution:\n{}\nThe network cost is {}.",
             (0..self.arc_loads.len())
                 .map(|i| format!(
-                    "Scenario {}, with cost {} and {}/{} slack used:\n{}",
+                    "Scenario {}, with cost {} and {}/{} slack used in delivery of {}/{} supply units:\n{}",
                     i,
                     self.costs[i],
                     self.slack_used[i],
                     self.slack[i] + self.slack_used[i],
+                    self.supply_total[i] - self.supply_remaining[i].sum(),
+                    self.supply_total[i],
                     self.arc_loads_repr[i]
                 ))
                 .collect::<Vec<String>>()

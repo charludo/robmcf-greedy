@@ -10,7 +10,10 @@
   outputs = { fenix, nixpkgs, utils, ... }:
     utils.lib.eachDefaultSystem (system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          system = system;
+          config.allowUnfree = true; # Gurobi...
+        };
         toolchain = fenix.packages.${system}.latest;
       in
       {
@@ -29,6 +32,8 @@
             llvmPackages.libclang
             lld
             pkg-config
+
+            gurobi
 
             (toolchain.withComponents [
               "cargo"
@@ -49,8 +54,16 @@
             xorg.libXi
             xorg.libXrandr
             libxkbcommon
+
+            gurobi
           ];
           LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath buildInputs;
+
+          shellHook = ''
+            export GUROBI_HOME=${pkgs.gurobi}
+            export GUROBI_VERSION=$(basename $(ls -d ${pkgs.gurobi}) | sed 's/.*-\([0-9]\+\)\.\([0-9]\+\).*/\1\2/')
+            export GRB_LICENSE_FILE="$HOME/.config/gurobi/gurobi.lic"
+          '';
         };
       });
 }

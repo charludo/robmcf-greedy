@@ -1,5 +1,8 @@
 /target
 
+# Gurobi
+gurobi.log
+*.lp
 
 # Added by cargo
 #

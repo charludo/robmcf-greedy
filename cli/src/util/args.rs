@@ -33,7 +33,7 @@ pub(crate) struct Args {
     pub(crate) slack: SlackFunction,
 
     /// Method by which a solution for routing supply which cannot use fixed arcs is found
-    #[arg(long, value_enum, default_value_t = RemainderSolveMethod::No, global = true)]
+    #[arg(long, value_enum, default_value_t = RemainderSolveMethod::None, global = true)]
     pub(crate) remainder: RemainderSolveMethod,
 }
 

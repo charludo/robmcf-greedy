@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use crate::options::RelativeDrawFunction;
+use crate::{matrix::Matrix, options::RelativeDrawFunction};
 
 use super::{b_tuple::BTuple, network_state::NetworkState};
 
@@ -11,6 +11,7 @@ pub(crate) struct Scenario {
     pub(crate) b_tuples_fixed: HashMap<usize, Vec<BTuple>>,
     pub(crate) slack: usize,
     pub(crate) slack_used: usize,
+    pub(crate) remaining_supply: Matrix<usize>,
     pub(crate) network_state: NetworkState,
 }
 

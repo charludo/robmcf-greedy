@@ -9,7 +9,12 @@ mod vertex;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, fs::File, io::BufReader};
 
-use crate::{algorithms::greedy, matrix::Matrix, Options};
+use crate::{
+    algorithms::{greedy, gurobi},
+    matrix::Matrix,
+    options::RemainderSolveMethod,
+    Options,
+};
 pub(super) use auxiliary_network::AuxiliaryNetwork;
 use solution::Solution;
 pub use vertex::Vertex;
@@ -133,6 +138,17 @@ impl Network {
                 log::error!("No auxiliary network found. Forgot to preprocess?");
                 self.auxiliary_network = auxiliary_network;
                 None
+            }
+        }
+    }
+
+    pub fn solve_remainder(&mut self) {
+        match self.options.remainder_solve_method {
+            RemainderSolveMethod::None => log::info!("Skipping solve of remaining network."),
+            RemainderSolveMethod::Greedy => log::debug!("No need to solve remaining network."),
+            RemainderSolveMethod::Gurobi => {
+                log::info!("Passing the remaining unsolved network to Gurobi...");
+                let _ = gurobi(self);
             }
         }
     }

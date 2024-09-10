@@ -67,12 +67,14 @@ fn main() {
                 network.serialize(file);
             }
             network.solve();
+            network.solve_remainder();
             network.validate_solution();
             println!("{}", network);
         }
         Commands::Solve { .. } => {
             network.preprocess();
             network.solve();
+            network.solve_remainder();
             network.validate_solution();
             println!("{}", network);
         }

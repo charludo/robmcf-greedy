@@ -22,6 +22,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
 
         scenarios.par_iter_mut().for_each(|mut entry| {
             let (_, scenario) = entry.pair_mut();
+            let mut remaining_suppply = std::mem::take(&mut scenario.remaining_supply);
             scenario.refresh_relative_draws(&waiting_at_fixed_arcs, &options.relative_draw_fn);
 
             scenario.b_tuples_free.retain_mut(|b_tuple| {
@@ -46,6 +47,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
                 b_tuple.s = next_vertex;
 
                 if b_tuple.s == b_tuple.t {
+                    remaining_suppply.decrement(b_tuple.origin, b_tuple.t);
                     return false;
                 }
 
@@ -93,6 +95,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
                         .use_arc(*fixed_arc, fixed_arc_terminal);
                     b_tuple.s = fixed_arc_terminal;
                     if b_tuple.s == b_tuple.t {
+                        remaining_suppply.decrement(b_tuple.origin, b_tuple.t);
                         return false;
                     }
 
@@ -101,6 +104,7 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
                 scenario.b_tuples_free.extend(consistently_moved_supply)
             });
 
+            scenario.remaining_supply = remaining_suppply;
             barrier_clone.wait();
         });
         network.scenarios = scenarios;
