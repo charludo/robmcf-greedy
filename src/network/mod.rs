@@ -16,7 +16,7 @@ use crate::{
     Options,
 };
 pub(super) use auxiliary_network::AuxiliaryNetwork;
-use solution::Solution;
+pub(super) use solution::ScenarioSolution;
 pub use vertex::Vertex;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -26,8 +26,9 @@ pub struct Network {
     pub costs: Matrix<usize>,
     pub balances: Vec<Matrix<usize>>,
     pub fixed_arcs: Vec<(usize, usize)>,
+
     #[serde(skip)]
-    pub(crate) solution: Option<Solution>,
+    pub(crate) solutions: Option<Vec<ScenarioSolution>>,
     #[serde(skip)]
     pub(crate) auxiliary_network: Option<AuxiliaryNetwork>,
 
@@ -124,21 +125,20 @@ impl Network {
         }
     }
 
-    pub fn solve(&mut self) {
+    pub fn solve(&mut self) -> Result<(), ()> {
         log::info!("Attempting to find a feasible robust flow...");
-        let auxiliary_network = std::mem::take(&mut self.auxiliary_network);
-        self.solution = match auxiliary_network {
-            Some(mut aux) => {
-                log::debug!("Found auxiliary network, calling greedy on it...");
-                greedy(&mut aux, &self.options);
-                self.auxiliary_network = Some(aux);
-                Some(Solution::from(&*self))
+        let Some(auxiliary_network) = &mut self.auxiliary_network else {
+            log::error!("No auxiliary network found. Forgot to preprocess?");
+            return Err(());
+        };
+        log::debug!("Found auxiliary network, calling greedy on it...");
+
+        match greedy(auxiliary_network, &self.options) {
+            Ok(solutions) => {
+                self.solutions = Some(solutions);
+                Ok(())
             }
-            None => {
-                log::error!("No auxiliary network found. Forgot to preprocess?");
-                self.auxiliary_network = auxiliary_network;
-                None
-            }
+            Err(_) => Err(()),
         }
     }
 
@@ -154,15 +154,15 @@ impl Network {
     }
 
     pub fn validate_solution(&self) {
-        match &self.solution {
+        match &self.solutions {
             None => log::error!("Solution is empty. Forgot to solve?"),
-            Some(solution) => {
+            Some(solutions) => {
                 log::info!("Assessing validity of found solution...");
 
-                if solution.arc_loads.len() != self.balances.len() {
+                if solutions.len() != self.balances.len() {
                     log::error!(
                         "Found {} scenario solutions, but expected {}.",
-                        solution.arc_loads.len(),
+                        solutions.len(),
                         self.balances.len()
                     );
                 }
@@ -173,11 +173,11 @@ impl Network {
                         .indices()
                         .filter(|(s, t)| s != t && !self.fixed_arcs.contains(&(*s, *t)))
                     {
-                        if self.capacities.get(s, t) < solution.arc_loads[i].get(s, t) {
+                        if self.capacities.get(s, t) < solutions[i].arc_loads.get(s, t) {
                             log::error!(
                                 "Scenario {} puts load {} on arc ({}->{}), but its capacity is {}.",
                                 i,
-                                solution.arc_loads[i].get(s, t),
+                                solutions[i].arc_loads.get(s, t),
                                 self.vertices[s],
                                 self.vertices[t],
                                 self.capacities.get(s, t)
@@ -188,6 +188,42 @@ impl Network {
                 log::info!("Validity check complete.");
             }
         }
+    }
+
+    pub fn cost(&self) -> usize {
+        match &self.solutions {
+            Some(solutions) => self.options.cost_fn.apply(
+                solutions
+                    .iter()
+                    .map(|s| s.cost(&self.costs))
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            ),
+            None => 0,
+        }
+    }
+
+    fn display_solutions(&self) -> String {
+        let Some(solutions) = &self.solutions else {
+            return "No solutions have been found yet.".to_string();
+        };
+        format!(
+            "The following arc loads constitute the solution:\n{}\nThe network cost is {}.",
+            solutions.iter()
+                .map(|solution| format!(
+                    "Scenario {}, with cost {} and {}/{} slack used in delivery of {}/{} supply units:\n{}",
+                    solution.id,
+                    solution.cost(&self.costs),
+                    solution.slack_used(),
+                    solution.slack_total,
+                    solution.supply_delivered(self.balances[solution.id].sum()),
+                    self.balances[solution.id].sum(),
+                    solution.arc_loads_colorized(&self.fixed_arcs),
+                ))
+                .collect::<Vec<String>>()
+                .join("\n"),
+            self.cost()
+        )
     }
 }
 
@@ -219,8 +255,12 @@ impl Display for Network {
                 .join(", ")
                 .to_string(),
         );
-        string_repr.push(match &self.solution {
-            Some(solution) => format!("{}\n{}", solution, &self.options.remainder_solve_method),
+        string_repr.push(match &self.solutions {
+            Some(_) => format!(
+                "{}\n{}",
+                &self.display_solutions(),
+                &self.options.remainder_solve_method
+            ),
             None => "Solution has not been calculated yet.".to_string(),
         });
         write!(f, "{}", string_repr.join("\n"))

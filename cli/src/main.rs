@@ -60,23 +60,24 @@ fn main() {
 
     network.validate_network();
     match &args.command {
-        Commands::Benchmark { iterations, .. } => run_benchmark(&network, *iterations),
+        Commands::Benchmark { iterations, .. } => {
+            run_benchmark(&network, *iterations);
+            return;
+        }
         Commands::Random { output, .. } => {
-            network.preprocess();
             if let Some(file) = output {
                 network.serialize(file);
             }
-            network.solve();
-            network.solve_remainder();
-            network.validate_solution();
-            println!("{}", network);
         }
-        Commands::Solve { .. } => {
-            network.preprocess();
-            network.solve();
-            network.solve_remainder();
-            network.validate_solution();
-            println!("{}", network);
-        }
+        Commands::Solve { .. } => {}
     }
+
+    network.preprocess();
+    if network.solve().is_err() {
+        log::error!("Could not solve the network.");
+        return;
+    };
+    network.solve_remainder();
+    network.validate_solution();
+    println!("{}", network);
 }

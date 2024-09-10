@@ -2,9 +2,15 @@ use std::sync::{Arc, Barrier};
 
 use rayon::{iter::ParallelIterator, ThreadPoolBuilder};
 
-use crate::{network::AuxiliaryNetwork, Options};
+use crate::{
+    network::{AuxiliaryNetwork, ScenarioSolution},
+    Options,
+};
 
-pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
+pub(crate) fn greedy(
+    network: &mut AuxiliaryNetwork,
+    options: &Options,
+) -> core::result::Result<Vec<ScenarioSolution>, Box<dyn core::error::Error>> {
     let num_threads = network.scenarios.len();
     let barrier = Arc::new(Barrier::new(num_threads));
     ThreadPoolBuilder::new()
@@ -17,12 +23,10 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
         let waiting_at_fixed_arcs = network.waiting();
         let consistent_flows_to_move = network.max_consistent_flows();
 
-        let scenarios = std::mem::take(&mut network.scenarios);
         let barrier_clone = barrier.clone();
 
-        scenarios.par_iter_mut().for_each(|mut entry| {
+        network.scenarios.par_iter_mut().for_each(|mut entry| {
             let (_, scenario) = entry.pair_mut();
-            let mut remaining_suppply = std::mem::take(&mut scenario.remaining_supply);
             scenario.refresh_relative_draws(&waiting_at_fixed_arcs, &options.relative_draw_fn);
 
             scenario.b_tuples_free.retain_mut(|b_tuple| {
@@ -47,7 +51,9 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
                 b_tuple.s = next_vertex;
 
                 if b_tuple.s == b_tuple.t {
-                    remaining_suppply.decrement(b_tuple.origin, b_tuple.t);
+                    scenario
+                        .supply_remaining
+                        .decrement(b_tuple.origin, b_tuple.t);
                     return false;
                 }
 
@@ -95,7 +101,9 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
                         .use_arc(*fixed_arc, fixed_arc_terminal);
                     b_tuple.s = fixed_arc_terminal;
                     if b_tuple.s == b_tuple.t {
-                        remaining_suppply.decrement(b_tuple.origin, b_tuple.t);
+                        scenario
+                            .supply_remaining
+                            .decrement(b_tuple.origin, b_tuple.t);
                         return false;
                     }
 
@@ -104,9 +112,27 @@ pub(crate) fn greedy(network: &mut AuxiliaryNetwork, options: &Options) {
                 scenario.b_tuples_free.extend(consistently_moved_supply)
             });
 
-            scenario.remaining_supply = remaining_suppply;
             barrier_clone.wait();
         });
-        network.scenarios = scenarios;
     }
+    let solutions = network
+        .scenarios
+        .iter()
+        .map(|scenario| ScenarioSolution {
+            id: scenario.id,
+            slack_total: scenario.slack,
+            slack_remaining: scenario.slack - scenario.slack_used,
+            supply_remaining: ScenarioSolution::supply_from_auxiliary(
+                &scenario.supply_remaining,
+                network.fixed_arcs.len(),
+            ),
+            arc_loads: ScenarioSolution::arc_loads_from_auxiliary(
+                &scenario.network_state.arc_loads,
+                &network.fixed_arcs,
+                &network.fixed_arcs_memory,
+            ),
+        })
+        .collect::<Vec<_>>();
+
+    Ok(solutions)
 }

@@ -181,7 +181,7 @@ impl From<&Network> for AuxiliaryNetwork {
                 b_tuples_fixed,
                 slack: slack[i],
                 slack_used: 0,
-                remaining_supply: balance.clone(),
+                supply_remaining: balance.clone(),
                 network_state,
             };
             log::debug!("Generated {}", scenario);

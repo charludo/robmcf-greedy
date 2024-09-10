@@ -2,21 +2,21 @@
 
 use grb::prelude::*;
 
-use crate::{matrix::Matrix, Network};
+use crate::{matrix::Matrix, network::ScenarioSolution, Network};
 
 pub fn gurobi(network: &mut Network) -> Result<(), Box<dyn std::error::Error>> {
-    let (balances, solution) = match &network.solution {
-        Some(solution) => (&solution.supply_remaining, &solution.arc_loads),
-        None => (
-            &network.balances,
-            &(0..network.balances.len())
-                .map(|_| Matrix::filled_with(0, network.vertices.len(), network.vertices.len()))
-                .collect(),
-        ),
+    let mut state = match &network.solutions {
+        Some(solutions) => solutions.clone(),
+        None => network
+            .balances
+            .iter()
+            .enumerate()
+            .map(|(i, b)| ScenarioSolution::new(i, b))
+            .collect::<Vec<_>>(),
     };
-    for (b, scenario) in balances.iter().enumerate() {
-        let mut model = Model::new(&format!("scenario_{b}"))?;
-        let capacities = &network.capacities.subtract(&solution[b]);
+    for (i_scenario, scenario) in state.iter_mut().enumerate() {
+        let mut model = Model::new(&format!("scenario_{i_scenario}"))?;
+        let capacities = &network.capacities.subtract(&scenario.arc_loads);
 
         let mut commodity_flows = Vec::new();
         for (i_commodity, commodity) in network.vertices.iter().enumerate() {
@@ -38,14 +38,17 @@ pub fn gurobi(network: &mut Network) -> Result<(), Box<dyn std::error::Error>> {
                 let incoming_flow = vars.as_columns()[i_vertex].clone().grb_sum();
 
                 if i_commodity != i_vertex {
-                    let commodity_supply_from_vertex = scenario.get(i_vertex, i_commodity);
+                    let commodity_supply_from_vertex =
+                        scenario.supply_remaining.get(i_vertex, i_commodity);
                     let _ = model.add_constr(
                         &format!("flow_balance_{i_commodity}({i_vertex})"),
                         c!(outgoing_flow - incoming_flow == commodity_supply_from_vertex),
                     )?;
                 } else {
                     let total_commodity_demand: i32 =
-                        scenario.as_columns()[i_commodity].iter().sum::<usize>() as i32;
+                        scenario.supply_remaining.as_columns()[i_commodity]
+                            .iter()
+                            .sum::<usize>() as i32;
                     let _ = model.add_constr(
                         &format!("flow_balance_{i_commodity}"),
                         c!(outgoing_flow - incoming_flow == -total_commodity_demand),
@@ -82,26 +85,33 @@ pub fn gurobi(network: &mut Network) -> Result<(), Box<dyn std::error::Error>> {
             .map(|(s, t)| commodity_loads.get(s, t).clone() * *network.costs.get(s, t))
             .grb_sum();
         model.set_objective(total_scenario_cost, Minimize)?;
-        model.write(&format!("scenario_{b}.lp"))?;
+        model.write(&format!("scenario_{i_scenario}.lp"))?;
 
-        // optimize the model
         model.optimize()?;
-        assert_eq!(model.status()?, Status::Optimal);
-        //
-        // // Querying a model attribute
-        // assert_eq!(model.get_attr(attr::ObjVal)?, 59.0);
-        //
-        // // Querying a model object attributes
-        // assert_eq!(model.get_obj_attr(attr::Slack, &c0)?, -34.5);
-        // let x1_name = model.get_obj_attr(attr::VarName, &x1)?;
-        //
-        // // Querying an attribute for multiple model objects
-        // let val = model.get_obj_attr_batch(attr::X, vec![x1, x2])?;
-        // assert_eq!(val, [6.5, 7.0]);
-        //
-        // // Querying variables by name
-        // assert_eq!(model.get_var_by_name(&x1_name)?, Some(x1));
+        match model.status()? {
+            Status::Optimal => {}
+            Status::SubOptimal => {}
+            _ => panic!("Optimization not successful"),
+        }
+        for commodity_flow in &commodity_flows {
+            let result = model.get_obj_attr_batch(attr::X, commodity_flow.elements().copied())?;
+            scenario.arc_loads = scenario.arc_loads.add(&Matrix::from_elements(
+                result
+                    .iter()
+                    .map(|e| *e as usize)
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+                scenario.arc_loads.num_rows(),
+                scenario.arc_loads.num_columns(),
+            ));
+            scenario.supply_remaining = Matrix::filled_with(
+                0,
+                scenario.supply_remaining.num_rows(),
+                scenario.supply_remaining.num_columns(),
+            );
+        }
     }
+    network.solutions = Some(state);
 
     Ok(())
 }

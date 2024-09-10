@@ -1,104 +1,86 @@
+use std::collections::HashMap;
+
 use colored::{ColoredString, Colorize};
-use std::fmt::Display;
 
 use crate::matrix::Matrix;
 
-use super::Network;
-
 #[derive(Debug, Clone)]
-pub(crate) struct Solution {
-    pub(crate) slack: Vec<usize>,
-    pub(crate) slack_used: Vec<usize>,
-    pub(crate) costs: Vec<usize>,
-    pub(crate) network_cost: usize,
-    pub(crate) arc_loads: Vec<Matrix<usize>>,
-    pub(crate) supply_total: Vec<usize>,
-    pub(crate) supply_remaining: Vec<Matrix<usize>>,
-    arc_loads_repr: Vec<Matrix<ColoredString>>,
+pub(crate) struct ScenarioSolution {
+    pub(crate) id: usize,
+
+    pub(crate) slack_total: usize,
+    pub(crate) slack_remaining: usize,
+
+    pub(crate) supply_remaining: Matrix<usize>,
+    pub(crate) arc_loads: Matrix<usize>,
 }
 
-impl From<&Network> for Solution {
-    fn from(network: &Network) -> Self {
-        let mut arc_loads: Vec<Matrix<usize>> = Vec::new();
-        let mut arc_loads_repr: Vec<Matrix<ColoredString>> = Vec::new();
-        let mut slack: Vec<usize> = Vec::new();
-        let mut slack_used: Vec<usize> = Vec::new();
-        let mut costs: Vec<usize> = Vec::new();
-        let mut supply_total: Vec<usize> = Vec::new();
-        let mut supply_remaining: Vec<Matrix<usize>> = Vec::new();
-
-        if let Some(auxiliary_network) = &network.auxiliary_network {
-            auxiliary_network.scenarios.iter().for_each(|scenario| {
-                let mut scenario_arc_loads = scenario.network_state.arc_loads.clone();
-                auxiliary_network.fixed_arcs.iter().for_each(|fixed_arc| {
-                    let original_arc = auxiliary_network.fixed_arcs_memory.get(fixed_arc).unwrap();
-                    scenario_arc_loads.set(
-                        original_arc.0,
-                        original_arc.1,
-                        *scenario_arc_loads.get(*fixed_arc, original_arc.1),
-                    );
-                });
-                scenario_arc_loads.shrink(auxiliary_network.fixed_arcs.len());
-                slack.push(scenario.slack);
-                slack_used.push(scenario.slack_used);
-                costs.push(scenario_arc_loads.hadamard_product(&network.costs).sum());
-                let mut scenario_arc_loads_str: Matrix<ColoredString> = Matrix::from_elements(
-                    scenario_arc_loads
-                        .elements()
-                        .map(|x| x.to_string().white())
-                        .collect::<Vec<_>>()
-                        .as_slice(),
-                    scenario_arc_loads.num_rows(),
-                    scenario_arc_loads.num_columns(),
-                );
-                network.fixed_arcs.iter().for_each(|(a0, a1)| {
-                    scenario_arc_loads_str.set(
-                        *a0,
-                        *a1,
-                        scenario_arc_loads_str.get(*a0, *a1).clone().green(),
-                    );
-                });
-                arc_loads.push(scenario_arc_loads);
-                arc_loads_repr.push(scenario_arc_loads_str);
-
-                let mut remaining_supply = scenario.remaining_supply.clone();
-                remaining_supply.shrink(auxiliary_network.fixed_arcs.len());
-                supply_total.push(network.balances[scenario.id].sum());
-                supply_remaining.push(remaining_supply);
-            });
-        };
-        Solution {
-            arc_loads,
-            arc_loads_repr,
-            network_cost: network.options.cost_fn.apply(&costs),
-            costs,
-            slack,
-            slack_used,
-            supply_total,
-            supply_remaining,
+impl ScenarioSolution {
+    pub(crate) fn new(id: usize, supply: &Matrix<usize>) -> Self {
+        ScenarioSolution {
+            id,
+            slack_total: 0,
+            slack_remaining: 0,
+            supply_remaining: supply.clone(),
+            arc_loads: Matrix::filled_with(0, supply.num_rows(), supply.num_columns()),
         }
     }
-}
 
-impl Display for Solution {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "The following arc loads constitute the solution:\n{}\nThe network cost is {}.",
-            (0..self.arc_loads.len())
-                .map(|i| format!(
-                    "Scenario {}, with cost {} and {}/{} slack used in delivery of {}/{} supply units:\n{}",
-                    i,
-                    self.costs[i],
-                    self.slack_used[i],
-                    self.slack[i] + self.slack_used[i],
-                    self.supply_total[i] - self.supply_remaining[i].sum(),
-                    self.supply_total[i],
-                    self.arc_loads_repr[i]
-                ))
-                .collect::<Vec<String>>()
-                .join("\n"),
-            self.network_cost
-        )
+    pub(crate) fn cost(&self, cost_matrix: &Matrix<usize>) -> usize {
+        self.arc_loads.hadamard_product(cost_matrix).sum()
+    }
+
+    pub(crate) fn arc_loads_colorized(
+        &self,
+        fixed_arcs: &[(usize, usize)],
+    ) -> Matrix<ColoredString> {
+        let mut arc_loads_colorized: Matrix<ColoredString> = Matrix::from_elements(
+            self.arc_loads
+                .elements()
+                .map(|x| x.to_string().white())
+                .collect::<Vec<_>>()
+                .as_slice(),
+            self.arc_loads.num_rows(),
+            self.arc_loads.num_columns(),
+        );
+        fixed_arcs.iter().for_each(|(s, t)| {
+            arc_loads_colorized.set(*s, *t, arc_loads_colorized.get(*s, *t).clone().blue());
+        });
+        arc_loads_colorized
+    }
+
+    pub(crate) fn supply_delivered(&self, supply_total: usize) -> usize {
+        supply_total - self.supply_remaining.sum()
+    }
+
+    pub(crate) fn slack_used(&self) -> usize {
+        self.slack_total - self.slack_remaining
+    }
+
+    pub(crate) fn supply_from_auxiliary(
+        supply: &Matrix<usize>,
+        num_fixed_arcs: usize,
+    ) -> Matrix<usize> {
+        let mut supply = supply.clone();
+        supply.shrink(num_fixed_arcs);
+        supply
+    }
+
+    pub(crate) fn arc_loads_from_auxiliary(
+        arc_loads: &Matrix<usize>,
+        fixed_arcs: &[usize],
+        fixed_arcs_memory: &HashMap<usize, (usize, usize)>,
+    ) -> Matrix<usize> {
+        let mut arc_loads = arc_loads.clone();
+        fixed_arcs.iter().for_each(|fixed_arc| {
+            let original_arc = fixed_arcs_memory.get(fixed_arc).unwrap();
+            arc_loads.set(
+                original_arc.0,
+                original_arc.1,
+                *arc_loads.get(*fixed_arc, original_arc.1),
+            );
+        });
+        arc_loads.shrink(fixed_arcs.len());
+        arc_loads
     }
 }

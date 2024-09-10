@@ -42,7 +42,7 @@ impl Network {
             balances,
             fixed_arcs,
             auxiliary_network: None,
-            solution: None,
+            solutions: None,
             options: options.clone(),
         }
     }

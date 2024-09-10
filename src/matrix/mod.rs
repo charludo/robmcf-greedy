@@ -213,6 +213,21 @@ impl Matrix<usize> {
         self.elements().sum()
     }
 
+    pub fn add(&self, other: &Matrix<usize>) -> Self {
+        assert!(self.num_rows() == other.num_rows());
+        assert!(self.num_columns() == other.num_columns());
+
+        Matrix::from_elements(
+            self.elements()
+                .zip(other.elements())
+                .map(|(a, b)| a.saturating_add(*b))
+                .collect::<Vec<_>>()
+                .as_slice(),
+            self.num_rows(),
+            self.num_columns(),
+        )
+    }
+
     pub fn subtract(&self, other: &Matrix<usize>) -> Self {
         assert!(self.num_rows() == other.num_rows());
         assert!(self.num_columns() == other.num_columns());

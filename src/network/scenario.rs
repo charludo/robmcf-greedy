@@ -11,7 +11,7 @@ pub(crate) struct Scenario {
     pub(crate) b_tuples_fixed: HashMap<usize, Vec<BTuple>>,
     pub(crate) slack: usize,
     pub(crate) slack_used: usize,
-    pub(crate) remaining_supply: Matrix<usize>,
+    pub(crate) supply_remaining: Matrix<usize>,
     pub(crate) network_state: NetworkState,
 }
 
@@ -35,9 +35,7 @@ impl Scenario {
 
     pub(crate) fn use_slack(&mut self, amount: usize) {
         self.slack_used += amount;
-        if amount <= self.slack {
-            self.slack -= amount;
-        } else {
+        if amount >= self.slack {
             panic!(
                 "Scenario {} has used up its slack before a feasible flow could be found!",
                 self.id
