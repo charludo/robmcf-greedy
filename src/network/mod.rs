@@ -1,13 +1,12 @@
 mod auxiliary_network;
 mod b_tuple;
-mod baseline;
 mod network_state;
 mod preprocessing;
 mod scenario;
 mod solution;
 mod vertex;
 
-use baseline::Baseline;
+use colored::Color;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, fs::File, io::BufReader};
 
@@ -18,7 +17,7 @@ use crate::{
     Options,
 };
 pub(super) use auxiliary_network::AuxiliaryNetwork;
-pub(super) use solution::ScenarioSolution;
+pub(super) use solution::{ScenarioSolution, Solution};
 pub use vertex::Vertex;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -30,7 +29,7 @@ pub struct Network {
     pub fixed_arcs: Vec<(usize, usize)>,
 
     #[serde(skip)]
-    pub(crate) baseline: Option<Baseline>,
+    pub(crate) baseline: Option<Vec<ScenarioSolution>>,
     #[serde(skip)]
     pub(crate) solutions: Option<Vec<ScenarioSolution>>,
     #[serde(skip)]
@@ -138,12 +137,7 @@ impl Network {
         let return_value = match gurobi(self) {
             Err(_) => Err(()),
             Ok(solutions) => {
-                self.baseline = Some(Baseline::from_solutions(
-                    &solutions,
-                    &self.fixed_arcs,
-                    &self.costs,
-                    &self.options.cost_fn,
-                ));
+                self.baseline = Some(solutions);
                 Ok(())
             }
         };
@@ -219,19 +213,6 @@ impl Network {
         }
     }
 
-    pub fn cost(&self) -> usize {
-        match &self.solutions {
-            Some(solutions) => self.options.cost_fn.apply(
-                solutions
-                    .iter()
-                    .map(|s| s.cost(&self.costs))
-                    .collect::<Vec<_>>()
-                    .as_slice(),
-            ),
-            None => 0,
-        }
-    }
-
     fn display_solutions(&self) -> String {
         let Some(solutions) = &self.solutions else {
             return "No solutions have been found yet.".to_string();
@@ -251,7 +232,7 @@ impl Network {
                 ))
                 .collect::<Vec<String>>()
                 .join("\n"),
-            self.cost()
+            solutions.cost(&self.costs, &self.options.cost_fn)
         )
     }
 }
@@ -260,7 +241,7 @@ impl Display for Network {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut string_repr: Vec<String> = vec![];
         string_repr.push("Network:".to_string());
-        string_repr.push("========".to_string());
+        string_repr.push("========\n".to_string());
         string_repr.push(format!(
             "Vertices: ({})",
             self.vertices
@@ -270,24 +251,43 @@ impl Display for Network {
                 .join(", ")
         ));
         string_repr.push(format!("Capacities:\n{}", self.capacities));
-        string_repr.push(format!("Costs:\n{}", self.costs));
+        string_repr.push(format!("Costs:\n{}\n", self.costs));
         string_repr.push(format!("{} Scenarios:", self.balances.len()));
         self.balances.iter().enumerate().for_each(|(i, b)| {
             string_repr.push(format!("{}.:\n{}", i, b));
         });
-        string_repr.push("The following arcs have been marked as fixed:".to_string());
-        string_repr.push(
+        string_repr.push("".to_string());
+        string_repr.push(format!(
+            "The following arcs have been marked as fixed: {}",
             self.fixed_arcs
                 .iter()
                 .map(|(s, t)| format!("({}->{})", self.vertices[*s], self.vertices[*t]))
                 .collect::<Vec<String>>()
                 .join(", ")
-                .to_string(),
-        );
-        string_repr.push(match &self.baseline {
-            Some(baseline) => format!("{}", baseline),
-            None => "Lower bound on cost has not been calculated.".to_string(),
-        });
+        ));
+        string_repr.push("".to_string());
+        if let Some(baseline) = &self.baseline {
+            string_repr.push(
+                    format!("The lower bound on network cost is {}. Omitting consistent flow constraints yields the following consistent flows:\n{}",
+                    baseline.cost(&self.costs, &self.options.cost_fn),
+                    baseline.consistent_flows_colorized(&self.fixed_arcs, Color::Blue))
+                );
+            string_repr.push("".to_string());
+        };
+        if let (Some(baseline), Some(solutions)) = (&self.baseline, &self.solutions) {
+            string_repr.push(
+                    format!("Introducing consistency constraints leads to the following consistent flow values:\n{}",
+                    solutions.consistent_flows_colorized(&self.fixed_arcs, Color::Blue))
+                );
+            string_repr.push("".to_string());
+            string_repr.push(format!(
+                "This corresponds to a relative change in cost of {} and the following relative changes in consistent flows:\n{}",
+                solutions.cost(&self.costs, &self.options.cost_fn)
+                    - baseline.cost(&self.costs, &self.options.cost_fn),
+                solutions.highlight_difference_to(baseline, &self.fixed_arcs)
+            ));
+            string_repr.push("".to_string());
+        }
         string_repr.push(match &self.solutions {
             Some(_) => format!(
                 "{}\n{}",
