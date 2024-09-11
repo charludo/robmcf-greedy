@@ -15,7 +15,16 @@ pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
             .collect::<Vec<_>>(),
     };
     for (i_scenario, scenario) in state.iter_mut().enumerate() {
-        let mut model = Model::new(&format!("scenario_{i_scenario}"))?;
+        let env = match log::log_enabled!(log::Level::Debug) {
+            true => Env::new("gurobi.log")?,
+            false => {
+                let mut env = Env::empty().unwrap();
+                env.set(param::OutputFlag, 0).unwrap();
+                env.start().unwrap()
+            }
+        };
+
+        let mut model = Model::with_env(&format!("scenario_{i_scenario}"), env)?;
         let capacities = &network.capacities.subtract(&scenario.arc_loads);
 
         let mut commodity_flows = Vec::new();

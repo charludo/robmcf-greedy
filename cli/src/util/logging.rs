@@ -19,3 +19,13 @@ pub(crate) fn setup_logger(level: LevelFilter) {
 
     log::debug!("Set up logging.");
 }
+
+#[macro_export]
+macro_rules! attempt {
+    ($e:expr) => {
+        if let Err(err) = $e {
+            log::error!("{}", err);
+            return;
+        }
+    };
+}

@@ -17,6 +17,8 @@ pub enum SolverError {
     GurobiSolutionError(usize),
 
     SkippedPreprocessingError,
+    SkippedSolveError,
+    InvalidSolutionError(String),
 }
 
 impl Display for SolverError {
@@ -42,6 +44,10 @@ impl Display for SolverError {
                     format!("Gurobi could not find a feasible flow in scenario {e}."),
                 SolverError::SkippedPreprocessingError =>
                     "No auxiliary network found. Forgot to preprocess?".to_owned(),
+                SolverError::SkippedSolveError =>
+                    "No solution found for validation. Forgot to solve?".to_owned(),
+                SolverError::InvalidSolutionError(e) =>
+                    format!("Found a solution, but it is invalid: {e}."),
             }
         )
     }

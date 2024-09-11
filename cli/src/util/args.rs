@@ -16,6 +16,10 @@ pub(crate) struct Args {
     #[arg(short, long, global = true)]
     pub(crate) quiet: bool,
 
+    /// Skip calculation of lower bound for network costs. Required if Gurobi is not available.
+    #[arg(short, long, global = true)]
+    pub(crate) skip_baseline: bool,
+
     /// Function used to calculate the cost of the overall solution
     #[arg(long, value_enum, default_value_t = CostFunction::Max, global = true)]
     pub(crate) costs: CostFunction,
@@ -60,11 +64,11 @@ pub(crate) enum Commands {
         output: Option<String>,
 
         /// Number of vertices
-        #[arg(short, long, default_value_t = 10)]
+        #[arg(long, default_value_t = 10)]
         vertices: usize,
 
         /// Number of fixed arcs
-        #[arg(short, long, default_value_t = 5)]
+        #[arg(long, default_value_t = 5)]
         fixed: usize,
 
         /// Connectedness as the fraction of arcs with a capacity greater than zero
@@ -88,11 +92,11 @@ pub(crate) enum Commands {
         cmax: usize,
 
         /// Number of scenarios to generate
-        #[arg(short, long, default_value_t = 2)]
+        #[arg(long, default_value_t = 2)]
         scenarios: usize,
 
         /// Fraction of vertices each vertex has supply greater than zero for
-        #[arg(short, long, default_value_t = 0.3)]
+        #[arg(long, default_value_t = 0.3)]
         balance_density: f64,
 
         /// Minimum supply value

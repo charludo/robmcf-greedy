@@ -29,7 +29,7 @@ fn main() {
         remainder_solve_method: args.remainder,
     };
 
-    let mut network = match &args.command {
+    let network = match &args.command {
         Commands::Random {
             output: _,
             vertices,
@@ -43,7 +43,7 @@ fn main() {
             balance_density,
             bmin,
             bmax,
-        } => Network::from_random(
+        } => Ok(Network::from_random(
             &options,
             *vertices,
             *arc_density,
@@ -53,12 +53,21 @@ fn main() {
             (*umin, *umax),
             (*cmin, *cmax),
             *fixed,
-        ),
+        )),
         Commands::Benchmark { file, .. } => Network::from_file(&options, file),
         Commands::Solve { file, .. } => Network::from_file(&options, file),
     };
 
-    network.validate_network();
+    let mut network = match network {
+        Ok(network) => network,
+        Err(e) => {
+            log::error!("{e}");
+            return;
+        }
+    };
+
+    attempt!(network.validate_network());
+
     match &args.command {
         Commands::Benchmark { iterations, .. } => {
             run_benchmark(&network, *iterations);
@@ -66,19 +75,19 @@ fn main() {
         }
         Commands::Random { output, .. } => {
             if let Some(file) = output {
-                network.serialize(file);
+                attempt!(network.serialize(file));
             }
         }
         Commands::Solve { .. } => {}
     }
 
-    let _ = network.lower_bound();
-    network.preprocess();
-    if network.solve().is_err() {
-        log::error!("Could not solve the network.");
-        return;
-    };
-    network.solve_remainder();
-    network.validate_solution();
+    if !&args.skip_baseline {
+        attempt!(network.lower_bound());
+    }
+    attempt!(network.preprocess());
+    attempt!(network.solve());
+    attempt!(network.solve_remainder());
+    attempt!(network.validate_solution());
+
     println!("{}", network);
 }

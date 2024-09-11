@@ -9,11 +9,11 @@ pub(crate) fn run_benchmark(network: &Network, iterations: usize) {
         let mut n: Network = network.clone();
 
         let start_preprocess = Instant::now();
-        n.preprocess();
+        crate::attempt!(n.preprocess());
         let elapsed_preprocess = start_preprocess.elapsed();
 
         let start_solve = Instant::now();
-        n.solve();
+        crate::attempt!(n.solve());
         let elapsed_solve = start_solve.elapsed();
 
         preprocess += elapsed_preprocess;

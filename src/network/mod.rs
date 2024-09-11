@@ -129,7 +129,7 @@ impl Network {
     }
 
     pub fn preprocess(&mut self) -> Result<()> {
-        log::info!("Beginning to preprocess network.");
+        log::info!("Beginning to preprocess network...");
         match self.auxiliary_network {
             Some(_) => {}
             None => {
@@ -137,6 +137,7 @@ impl Network {
                 self.auxiliary_network = Some(auxiliary_network);
             }
         }
+        log::info!("Preprocessing complete.");
         Ok(())
     }
 
@@ -154,6 +155,7 @@ impl Network {
             Ok(solutions) => {
                 self.baseline = Some(solutions);
                 self.capacities = capacities_memory;
+                log::info!("Found a lower bound on network cost.");
                 Ok(())
             }
         }
@@ -170,6 +172,7 @@ impl Network {
         match greedy(auxiliary_network, &self.options) {
             Ok(solutions) => {
                 self.solutions = Some(solutions);
+                log::info!("Found a solution.");
                 Ok(())
             }
             Err(e) => Err(e),
@@ -189,41 +192,43 @@ impl Network {
         Ok(())
     }
 
-    pub fn validate_solution(&self) {
-        match &self.solutions {
-            None => log::error!("Solution is empty. Forgot to solve?"),
-            Some(solutions) => {
-                log::info!("Assessing validity of found solution...");
+    pub fn validate_solution(&self) -> Result<()> {
+        log::info!("Attempting to assess validity of found solution...");
+        let solutions = match &self.solutions {
+            Some(solutions) => solutions,
+            None => return Err(SolverError::SkippedSolveError),
+        };
+        log::debug!("Found existing solution, validating...");
 
-                if solutions.len() != self.balances.len() {
-                    log::error!(
-                        "Found {} scenario solutions, but expected {}.",
-                        solutions.len(),
-                        self.balances.len()
-                    );
-                }
+        if solutions.len() != self.balances.len() {
+            return Err(SolverError::NetworkShapeError(format!(
+                "Found {} scenario solutions, but expected {}.",
+                solutions.len(),
+                self.balances.len()
+            )));
+        }
 
-                for (i, _) in self.balances.iter().enumerate() {
-                    for (s, t) in self
-                        .capacities
-                        .indices()
-                        .filter(|(s, t)| s != t && !self.fixed_arcs.contains(&(*s, *t)))
-                    {
-                        if self.capacities.get(s, t) < solutions[i].arc_loads.get(s, t) {
-                            log::error!(
-                                "Scenario {} puts load {} on arc ({}->{}), but its capacity is {}.",
-                                i,
-                                solutions[i].arc_loads.get(s, t),
-                                self.vertices[s],
-                                self.vertices[t],
-                                self.capacities.get(s, t)
-                            );
-                        }
-                    }
+        for (i, _) in self.balances.iter().enumerate() {
+            for (s, t) in self
+                .capacities
+                .indices()
+                .filter(|(s, t)| s != t && !self.fixed_arcs.contains(&(*s, *t)))
+            {
+                if self.capacities.get(s, t) < solutions[i].arc_loads.get(s, t) {
+                    return Err(SolverError::NetworkShapeError(format!(
+                        "Scenario {} puts load {} on arc ({}->{}), but its capacity is {}.",
+                        i,
+                        solutions[i].arc_loads.get(s, t),
+                        self.vertices[s],
+                        self.vertices[t],
+                        self.capacities.get(s, t)
+                    )));
                 }
-                log::info!("Validity check complete.");
             }
         }
+
+        log::info!("Solution is valid.");
+        Ok(())
     }
 
     fn display_solutions(&self) -> String {
