@@ -19,7 +19,7 @@ pub(crate) struct NetworkState {
 
     pub(crate) arc_loads: Matrix<usize>,
 
-    pub(crate) relative_draws: HashMap<usize, i32>,
+    pub(crate) relative_draws: HashMap<usize, i64>,
     pub(crate) needs_refresh: Matrix<bool>,
 }
 
@@ -69,7 +69,7 @@ impl NetworkState {
             .get(origin, dest)
             .iter()
             .min_by_key(|fixed_arc| {
-                (*distances.get(s, **fixed_arc) as i32) + (*distances.get(**fixed_arc, dest) as i32)
+                (*distances.get(s, **fixed_arc) as i64) + (*distances.get(**fixed_arc, dest) as i64)
                     - *self.relative_draws.get(fixed_arc).unwrap_or(&0)
             })
             .copied()
@@ -103,13 +103,21 @@ impl NetworkState {
         }
 
         let distances = self.distances.get(origin, dest);
+
         let cost_via_direct_path = *distances.get(s, dest);
+        if cost_via_direct_path == usize::MAX {
+            return Err(SolverError::NoFeasibleFlowError(scenario_id));
+        }
+
         let cost_via_fixed_arc = distances
             .get(s, closest_fixed_arc)
             .saturating_add(*distances.get(closest_fixed_arc, dest));
+        if cost_via_fixed_arc == usize::MAX {
+            return Ok(next_vertex_via_direct_path);
+        }
 
-        if (cost_via_direct_path as i32)
-            < (cost_via_fixed_arc as i32)
+        if (cost_via_direct_path as i64)
+            < (cost_via_fixed_arc as i64)
                 - *self.relative_draws.get(&closest_fixed_arc).unwrap_or(&0)
         {
             Ok(next_vertex_via_direct_path)

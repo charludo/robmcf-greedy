@@ -151,7 +151,7 @@ impl Solution for [ScenarioSolution] {
                     if first == usize::MAX || second == usize::MAX {
                         " ".to_string().color(Color::White)
                     } else {
-                        let diff = (first as i32) - (second as i32);
+                        let diff = (first as i64) - (second as i64);
                         match diff.cmp(&0) {
                             Ordering::Equal => diff.to_string().color(Color::Blue),
                             Ordering::Greater => diff.to_string().color(Color::Green),

@@ -51,7 +51,7 @@ impl Network {
 
 fn generate_random_coordinate(num_vertices: usize) -> f32 {
     let mut rng = rand::thread_rng();
-    let p = rng.gen_range((-100 * num_vertices as i32)..(100 * num_vertices as i32));
+    let p = rng.gen_range((-100 * num_vertices as i64)..(100 * num_vertices as i64));
     p as f32
 }
 

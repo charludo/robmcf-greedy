@@ -4,7 +4,7 @@ use rayon::{iter::ParallelIterator, ThreadPoolBuilder};
 
 use crate::{
     network::{AuxiliaryNetwork, Scenario, ScenarioSolution},
-    Options, Result, SolverError,
+    Options, Result,
 };
 
 pub(crate) fn greedy(
@@ -12,13 +12,13 @@ pub(crate) fn greedy(
     options: &Options,
 ) -> Result<Vec<ScenarioSolution>> {
     let pool = ThreadPoolBuilder::new().build().unwrap();
-    pool.install(|| {
+    let result: Result<()> = pool.install(|| {
         while network.exists_supply() {
             let exists_free_supply = network.exists_free_supply();
             let waiting_at_fixed_arcs = network.waiting();
             let consistent_flows_to_move = network.max_consistent_flows();
 
-            let _r: std::result::Result<Vec<_>, _> = network
+            let result: Result<Vec<_>> = network
                 .scenarios
                 .par_iter_mut()
                 .map(|mut entry| {
@@ -34,11 +34,14 @@ pub(crate) fn greedy(
                         exists_free_supply,
                     )?;
 
-                    Ok::<(), SolverError>(())
+                    Ok(())
                 })
                 .collect();
+            result?;
         }
+        Ok(())
     });
+    result?;
 
     get_solutions(network)
 }

@@ -300,8 +300,8 @@ impl Display for Network {
             string_repr.push("".to_string());
             string_repr.push(format!(
                 "This corresponds to a relative change in cost of {} and the following relative changes in consistent flows:\n{}",
-                solutions.cost(&self.costs, &self.options.cost_fn)
-                    - baseline.cost(&self.costs, &self.options.cost_fn),
+                (solutions.cost(&self.costs, &self.options.cost_fn) as i64)
+                    - (baseline.cost(&self.costs, &self.options.cost_fn) as i64),
                 solutions.highlight_difference_to(baseline, &self.fixed_arcs)
             ));
             string_repr.push("".to_string());

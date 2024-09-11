@@ -54,10 +54,10 @@ pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
                         c!(outgoing_flow - incoming_flow == commodity_supply_from_vertex),
                     )?;
                 } else {
-                    let total_commodity_demand: i32 =
+                    let total_commodity_demand: i64 =
                         scenario.supply_remaining.as_columns()[i_commodity]
                             .iter()
-                            .sum::<usize>() as i32;
+                            .sum::<usize>() as i64;
                     let _ = model.add_constr(
                         &format!("flow_balance_{i_commodity}"),
                         c!(outgoing_flow - incoming_flow == -total_commodity_demand),

@@ -22,7 +22,7 @@ pub enum RelativeDrawFunction {
 }
 
 impl RelativeDrawFunction {
-    pub fn apply(&self, global: i32, scenario: i32, slack: usize) -> i32 {
+    pub fn apply(&self, global: i64, scenario: i64, slack: usize) -> i64 {
         match self {
             RelativeDrawFunction::Linear => Self::exponential(global, scenario, 0, 1),
             RelativeDrawFunction::LinearWithSlack => Self::exponential(global, scenario, slack, 1),
@@ -51,9 +51,9 @@ impl RelativeDrawFunction {
         }
     }
 
-    fn exponential(global: i32, scenario: i32, slack: usize, e: u32) -> i32 {
-        let difference = max(0, global - slack as i32) - scenario;
-        let draw = (max(0, global - slack as i32) - scenario).pow(e);
+    fn exponential(global: i64, scenario: i64, slack: usize, e: u32) -> i64 {
+        let difference = max(0, global - slack as i64) - scenario;
+        let draw = (max(0, global - slack as i64) - scenario).pow(e);
 
         // Allow negative draw for even exponents
         if difference < 0 && draw > 0 {

@@ -139,7 +139,7 @@ impl AuxiliaryNetwork {
         let arc_loads = Matrix::filled_with(0, num_vertices, num_vertices);
 
         // while in later iterations, capacities can differ between (s, t) pairs in BTuples,
-        // we can initially re-use distance and successor maps between all (s, t) pairs and
+        // we can initially reuse distance and successor maps between all (s, t) pairs and
         // balances, since the arcs for the globally shortest path from s to t is guaranteed to
         // be included in in the intermediate arc set of (s, t).
         let (distance_map, predecessor_map) = floyd_warshall(&capacities, &costs);
@@ -164,7 +164,7 @@ impl AuxiliaryNetwork {
                 capacities: capacities.clone(),
                 costs: Arc::new(costs.clone()),
                 arc_loads: arc_loads.clone(),
-                needs_refresh: Matrix::filled_with(false, num_vertices, num_vertices),
+                needs_refresh: Matrix::filled_with(true, num_vertices, num_vertices),
                 relative_draws: HashMap::new(),
             };
 
