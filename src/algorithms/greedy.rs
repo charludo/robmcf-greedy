@@ -1,52 +1,44 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Barrier},
-};
+use std::collections::HashMap;
 
 use rayon::{iter::ParallelIterator, ThreadPoolBuilder};
 
 use crate::{
     network::{AuxiliaryNetwork, Scenario, ScenarioSolution},
-    Options, Result,
+    Options, Result, SolverError,
 };
 
 pub(crate) fn greedy(
     network: &mut AuxiliaryNetwork,
     options: &Options,
 ) -> Result<Vec<ScenarioSolution>> {
-    let num_threads = network.scenarios.len();
-    let barrier = Arc::new(Barrier::new(num_threads));
-    ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .build()
-        .unwrap();
+    let pool = ThreadPoolBuilder::new().build().unwrap();
+    pool.install(|| {
+        while network.exists_supply() {
+            let exists_free_supply = network.exists_free_supply();
+            let waiting_at_fixed_arcs = network.waiting();
+            let consistent_flows_to_move = network.max_consistent_flows();
 
-    while network.exists_supply() {
-        let exists_free_supply = network.exists_free_supply();
-        let waiting_at_fixed_arcs = network.waiting();
-        let consistent_flows_to_move = network.max_consistent_flows();
-        let barrier_clone = barrier.clone();
+            let _r: std::result::Result<Vec<_>, _> = network
+                .scenarios
+                .par_iter_mut()
+                .map(|mut entry| {
+                    let (_, scenario) = entry.pair_mut();
+                    scenario
+                        .refresh_relative_draws(&waiting_at_fixed_arcs, &options.relative_draw_fn);
 
-        let _: Result<Vec<_>> = network
-            .scenarios
-            .par_iter_mut()
-            .map(|mut entry| {
-                let (_, scenario) = entry.pair_mut();
-                scenario.refresh_relative_draws(&waiting_at_fixed_arcs, &options.relative_draw_fn);
+                    handle_free(scenario, &network.fixed_arcs)?;
+                    handle_fixed(
+                        scenario,
+                        network,
+                        &consistent_flows_to_move,
+                        exists_free_supply,
+                    )?;
 
-                handle_free(scenario, &network.fixed_arcs)?;
-                handle_fixed(
-                    scenario,
-                    network,
-                    &consistent_flows_to_move,
-                    exists_free_supply,
-                )?;
-
-                barrier_clone.wait();
-                Ok(())
-            })
-            .collect();
-    }
+                    Ok::<(), SolverError>(())
+                })
+                .collect();
+        }
+    });
 
     get_solutions(network)
 }
