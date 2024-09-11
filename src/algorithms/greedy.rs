@@ -105,14 +105,15 @@ fn handle_fixed(
         };
 
         if consistent_flow_to_move == 0 {
-            return Ok(());
+            continue;
         }
 
         log::info!(
-            "Moving {} units of supply {} along the fixed arc {}",
+            "Moving {} units of supply {} along the fixed arc {} in scenario {}",
             consistent_flow_to_move,
             move_method,
-            network.fixed_arc_repr(*fixed_arc)
+            network.fixed_arc_repr(*fixed_arc),
+            scenario.id
         );
 
         let mut consistently_moved_supply = scenario
