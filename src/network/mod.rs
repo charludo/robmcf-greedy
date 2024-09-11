@@ -258,8 +258,8 @@ impl Network {
 impl Display for Network {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut string_repr: Vec<String> = vec![];
-        string_repr.push("Network:".to_string());
-        string_repr.push("========\n".to_string());
+        string_repr.push("\nNetwork:".to_string());
+        string_repr.push("========".to_string());
         string_repr.push(format!(
             "Vertices: ({})",
             self.vertices
