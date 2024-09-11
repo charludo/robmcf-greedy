@@ -4,6 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
     matrix::Matrix,
+    Result, SolverError,
 };
 
 use super::{
@@ -77,17 +78,15 @@ impl AuxiliaryNetwork {
         }
     }
 
-    pub(crate) fn get_fixed_arc_terminal(&self, fixed_vertex: usize) -> usize {
+    pub(crate) fn get_fixed_arc_terminal(&self, fixed_vertex: usize) -> Result<usize> {
         let fixed_arc = self.fixed_arcs_memory.get(&fixed_vertex);
         match fixed_arc {
-            Some(arc) => arc.1,
-            None => panic!("Encountered a fixed arc which exists only in the fixed arc memory!"),
+            Some(arc) => Ok(arc.1),
+            None => Err(SolverError::FixedArcMemoryCorruptError),
         }
     }
-}
 
-impl From<&Network> for AuxiliaryNetwork {
-    fn from(network: &Network) -> Self {
+    pub(crate) fn from_network(network: &Network) -> Result<Self> {
         let mut num_vertices = network.vertices.len();
         let mut fixed_arcs: Vec<usize> = vec![];
         let mut fixed_arcs_memory: HashMap<usize, (usize, usize)> = HashMap::new();
@@ -144,7 +143,7 @@ impl From<&Network> for AuxiliaryNetwork {
         // balances, since the arcs for the globally shortest path from s to t is guaranteed to
         // be included in in the intermediate arc set of (s, t).
         let (distance_map, predecessor_map) = floyd_warshall(&capacities, &costs);
-        let successor_map = invert_predecessors(&predecessor_map);
+        let successor_map = invert_predecessors(&predecessor_map)?;
 
         // intermediate arc sets only need to be computed once. Their sole purpose is to act as a
         // mask on capacities when Floyd-Warshall is refreshed in the greedy iterations.
@@ -188,10 +187,10 @@ impl From<&Network> for AuxiliaryNetwork {
             scenarios.insert(i, scenario);
         });
 
-        AuxiliaryNetwork {
+        Ok(AuxiliaryNetwork {
             scenarios,
             fixed_arcs,
             fixed_arcs_memory,
-        }
+        })
     }
 }

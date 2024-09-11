@@ -8,7 +8,8 @@ mod vertex;
 
 use colored::Color;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, fs::File, io::BufReader};
+use std::fmt::Display;
+use std::fs;
 
 use crate::{
     algorithms::{greedy, gurobi},
@@ -16,7 +17,9 @@ use crate::{
     options::RemainderSolveMethod,
     Options,
 };
+use crate::{Result, SolverError};
 pub(super) use auxiliary_network::AuxiliaryNetwork;
+pub(crate) use scenario::Scenario;
 pub(super) use solution::{ScenarioSolution, Solution};
 pub use vertex::Vertex;
 
@@ -40,62 +43,64 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn from_file(options: &Options, filename: &str) -> Self {
-        let file = match File::open(filename) {
-            Ok(result) => result,
-            Err(msg) => panic!("Failed to open file \"{}\": {}", filename, msg),
-        };
-        let reader = BufReader::new(file);
-
-        log::debug!("Deserializing network from {}", filename);
-        let mut network: Network = match serde_json::from_reader(reader) {
-            Ok(result) => result,
-            Err(msg) => panic!("Failed to parse the network: {}", msg),
-        };
-
+    pub fn from_file(options: &Options, filename: &str) -> Result<Self> {
+        let network_string = fs::read_to_string(filename)?;
+        let mut network: Network = serde_json::from_str(&network_string)?;
         network.options = options.clone();
-        network
+        Ok(network)
     }
 
-    pub fn serialize(&self, filename: &str) {
-        let json_str = serde_json::to_string(self).unwrap();
+    pub fn serialize(&self, filename: &str) -> Result<()> {
+        let json_str = serde_json::to_string(self)?;
         log::debug!("Writing\n{json_str}\nto {filename}");
-        std::fs::write(filename, json_str).unwrap();
+        std::fs::write(filename, json_str)?;
+        Ok(())
     }
 
-    pub fn validate_network(&self) {
+    pub fn validate_network(&self) -> Result<()> {
         let len = self.vertices.len();
 
         let matrices = [&self.capacities, &self.costs];
         for matrix in matrices {
             if matrix.num_rows() != len || matrix.num_columns() != len {
-                panic!("Matrices u, c have differing dimensions or are not quadratic");
+                return Err(SolverError::NetworkShapeError(
+                    "capacities, and costs have differing dimensions or are not quadratic"
+                        .to_owned(),
+                ));
             }
         }
 
         for (i, row) in self.capacities.as_rows().iter().enumerate() {
             if row.iter().sum::<usize>() == 0 {
-                panic!("Vertex {} is a dead end", self.vertices[i]);
+                return Err(SolverError::NetworkShapeError(format!(
+                    "vertex {} is a dead end",
+                    self.vertices[i]
+                )));
             }
         }
         for (i, column) in self.capacities.as_columns().iter().enumerate() {
             if column.iter().sum::<usize>() == 0 {
-                panic!("Vertex {} is unreachable", self.vertices[i]);
+                return Err(SolverError::NetworkShapeError(format!(
+                    "vertex {} is unreachable",
+                    self.vertices[i]
+                )));
             }
         }
 
         let total_capacity = self.capacities.sum();
         for (i, matrix) in self.balances.iter().enumerate() {
             if matrix.num_rows() != len || matrix.num_columns() != len {
-                panic!("Matrices in b have differing dimensions or are not quadratic");
+                return Err(SolverError::NetworkShapeError(
+                    "some balances have differing dimensions or are not quadratic".to_owned(),
+                ));
             }
 
             for (s, t) in matrix.indices() {
                 if s == t && *matrix.get(s, t) > 0 {
-                    panic!(
-                        "Circular supply ({}->{}) is not allowed.",
+                    return Err(SolverError::NetworkShapeError(format!(
+                        "self-supply ({}->{}) is not allowed",
                         self.vertices[s], self.vertices[t]
-                    );
+                    )));
                 }
             }
 
@@ -113,43 +118,52 @@ impl Network {
             }
 
             if total_capacity < matrix.sum() {
-                panic!("Balance {i} has higher supply than the network has capacities!");
+                return Err(SolverError::NetworkShapeError(format!(
+                    "scenario {i} has higher supply than the network has capacities"
+                )));
             }
         }
 
         log::info!("Network is valid.");
+        Ok(())
     }
 
-    pub fn preprocess(&mut self) {
+    pub fn preprocess(&mut self) -> Result<()> {
         log::info!("Beginning to preprocess network.");
         match self.auxiliary_network {
             Some(_) => {}
-            None => self.auxiliary_network = Some(AuxiliaryNetwork::from(&*self)),
+            None => {
+                let auxiliary_network = AuxiliaryNetwork::from_network(&*self)?;
+                self.auxiliary_network = Some(auxiliary_network);
+            }
         }
+        Ok(())
     }
 
-    pub fn lower_bound(&mut self) -> Result<(), ()> {
+    pub fn lower_bound(&mut self) -> Result<()> {
         log::info!("Attempting to find a lower bound for network cost...");
         let capacities_memory = self.capacities.clone();
         for (s, t) in self.fixed_arcs.iter() {
             self.capacities.set(*s, *t, usize::MAX);
         }
-        let return_value = match gurobi(self) {
-            Err(_) => Err(()),
+        match gurobi(self) {
+            Err(e) => {
+                self.capacities = capacities_memory;
+                Err(e)
+            }
             Ok(solutions) => {
                 self.baseline = Some(solutions);
+                self.capacities = capacities_memory;
                 Ok(())
             }
-        };
-        self.capacities = capacities_memory;
-        return_value
+        }
     }
 
-    pub fn solve(&mut self) -> Result<(), ()> {
+    pub fn solve(&mut self) -> Result<()> {
         log::info!("Attempting to find a feasible robust flow...");
-        let Some(auxiliary_network) = &mut self.auxiliary_network else {
-            log::error!("No auxiliary network found. Forgot to preprocess?");
-            return Err(());
+        let auxiliary_network = match &mut self.auxiliary_network {
+            Some(aux) => aux,
+            None => return Err(SolverError::SkippedPreprocessingError),
         };
         log::debug!("Found auxiliary network, calling greedy on it...");
 
@@ -158,22 +172,21 @@ impl Network {
                 self.solutions = Some(solutions);
                 Ok(())
             }
-            Err(_) => Err(()),
+            Err(e) => Err(e),
         }
     }
 
-    pub fn solve_remainder(&mut self) {
+    pub fn solve_remainder(&mut self) -> Result<()> {
         match self.options.remainder_solve_method {
             RemainderSolveMethod::None => log::info!("Skipping solve of remaining network."),
             RemainderSolveMethod::Greedy => log::debug!("No need to solve remaining network."),
             RemainderSolveMethod::Gurobi => {
                 log::info!("Passing the remaining unsolved network to Gurobi...");
-                match gurobi(self) {
-                    Err(_) => panic!("Gurobi could not find a solution."),
-                    Ok(solutions) => self.solutions = Some(solutions),
-                };
+                let solutions = gurobi(self)?;
+                self.solutions = Some(solutions);
             }
         }
+        Ok(())
     }
 
     pub fn validate_solution(&self) {

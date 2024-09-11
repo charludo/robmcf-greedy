@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::HashMap};
 
 use colored::{Color, ColoredString, Colorize};
 
-use crate::{matrix::Matrix, options::CostFunction};
+use crate::{matrix::Matrix, options::CostFunction, Result, SolverError};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ScenarioSolution {
@@ -51,18 +51,21 @@ impl ScenarioSolution {
         arc_loads: &Matrix<usize>,
         fixed_arcs: &[usize],
         fixed_arcs_memory: &HashMap<usize, (usize, usize)>,
-    ) -> Matrix<usize> {
+    ) -> Result<Matrix<usize>> {
         let mut arc_loads = arc_loads.clone();
-        fixed_arcs.iter().for_each(|fixed_arc| {
-            let original_arc = fixed_arcs_memory.get(fixed_arc).unwrap();
+        for fixed_arc in fixed_arcs.iter() {
+            let original_arc = match fixed_arcs_memory.get(fixed_arc) {
+                Some(arc) => arc,
+                None => return Err(SolverError::FixedArcMemoryCorruptError),
+            };
             arc_loads.set(
                 original_arc.0,
                 original_arc.1,
                 *arc_loads.get(*fixed_arc, original_arc.1),
             );
-        });
+        }
         arc_loads.shrink(fixed_arcs.len());
-        arc_loads
+        Ok(arc_loads)
     }
 }
 

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use crate::{matrix::Matrix, options::RelativeDrawFunction};
+use crate::{matrix::Matrix, options::RelativeDrawFunction, Result, SolverError};
 
 use super::{b_tuple::BTuple, network_state::NetworkState};
 
@@ -33,13 +33,12 @@ impl Scenario {
         }
     }
 
-    pub(crate) fn use_slack(&mut self, amount: usize) {
+    pub(crate) fn use_slack(&mut self, amount: usize) -> Result<()> {
         self.slack_used += amount;
         if amount >= self.slack {
-            panic!(
-                "Scenario {} has used up its slack before a feasible flow could be found!",
-                self.id
-            )
+            Err(SolverError::NoSlackLeftError(self.id))
+        } else {
+            Ok(())
         }
     }
 }

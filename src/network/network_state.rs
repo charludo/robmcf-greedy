@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
     matrix::Matrix,
+    Result, SolverError,
 };
 
 #[derive(Debug, Clone)]
@@ -23,7 +24,7 @@ pub(crate) struct NetworkState {
 }
 
 impl NetworkState {
-    fn refresh(&mut self, origin: usize, dest: usize) {
+    fn refresh(&mut self, origin: usize, dest: usize) -> Result<()> {
         log::info!("Performing scheduled refresh for (s, t) pair ({origin}, {dest}).");
         let (distance_map, predecessor_map) = floyd_warshall(
             &self
@@ -34,9 +35,10 @@ impl NetworkState {
         let successor_map = invert_predecessors(&predecessor_map);
 
         self.distances.set(origin, dest, distance_map);
-        self.successors.set(origin, dest, successor_map);
+        self.successors.set(origin, dest, successor_map?);
 
         self.needs_refresh.set(origin, dest, false);
+        Ok(())
     }
 
     fn schedule_refresh(&mut self, s: usize, t: usize) {
@@ -73,20 +75,31 @@ impl NetworkState {
             .copied()
     }
 
-    pub(crate) fn get_next_vertex(&mut self, origin: usize, s: usize, dest: usize) -> usize {
+    pub(crate) fn get_next_vertex(
+        &mut self,
+        scenario_id: usize,
+        origin: usize,
+        s: usize,
+        dest: usize,
+    ) -> Result<usize> {
         if *self.needs_refresh.get(origin, dest) {
-            self.refresh(origin, dest);
+            self.refresh(origin, dest)?;
         }
 
         let successors = self.successors.get(origin, dest);
         let next_vertex_via_direct_path = *successors.get(s, dest);
+
+        if next_vertex_via_direct_path == usize::MAX {
+            return Err(SolverError::NoFeasibleFlowError(scenario_id));
+        }
+
         let closest_fixed_arc = match self.get_closest_fixed_arc(origin, s, dest) {
-            None => return next_vertex_via_direct_path, // is this is usize::MAX, then no feasible flow exists anyways!
             Some(fixed_arc) => fixed_arc,
+            None => return Ok(next_vertex_via_direct_path),
         };
         let next_vertex_via_fixed_arc = *successors.get(s, closest_fixed_arc);
         if next_vertex_via_fixed_arc == usize::MAX {
-            return next_vertex_via_direct_path;
+            return Ok(next_vertex_via_direct_path);
         }
 
         let distances = self.distances.get(origin, dest);
@@ -99,9 +112,9 @@ impl NetworkState {
             < (cost_via_fixed_arc as i32)
                 - *self.relative_draws.get(&closest_fixed_arc).unwrap_or(&0)
         {
-            next_vertex_via_direct_path
+            Ok(next_vertex_via_direct_path)
         } else {
-            next_vertex_via_fixed_arc
+            Ok(next_vertex_via_fixed_arc)
         }
     }
 }

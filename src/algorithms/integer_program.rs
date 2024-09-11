@@ -2,9 +2,9 @@
 
 use grb::prelude::*;
 
-use crate::{matrix::Matrix, network::ScenarioSolution, Network};
+use crate::{matrix::Matrix, network::ScenarioSolution, Network, Result, SolverError};
 
-pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>, Box<dyn std::error::Error>> {
+pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
     let mut state = match &network.solutions {
         Some(solutions) => solutions.clone(),
         None => network
@@ -91,7 +91,7 @@ pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>, Box<dyn st
         match model.status()? {
             Status::Optimal => {}
             Status::SubOptimal => {}
-            _ => panic!("Optimization not successful"),
+            _ => return Err(SolverError::GurobiSolutionError(scenario.id)),
         }
         for commodity_flow in &commodity_flows {
             let result = model.get_obj_attr_batch(attr::X, commodity_flow.elements().copied())?;

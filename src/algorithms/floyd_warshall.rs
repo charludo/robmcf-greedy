@@ -1,4 +1,5 @@
 use crate::matrix::Matrix;
+use crate::{Result, SolverError};
 
 pub(crate) fn floyd_warshall(
     capacities: &Matrix<usize>,
@@ -41,13 +42,13 @@ pub(crate) fn floyd_warshall(
     (dist, prev)
 }
 
-pub(crate) fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Matrix<usize> {
+pub(crate) fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Result<Matrix<usize>> {
     let mut succ: Matrix<usize> =
         Matrix::filled_with(usize::MAX, prev.num_rows(), prev.num_columns());
 
-    prev.indices().for_each(|(s, t)| {
+    for (s, t) in prev.indices() {
         if *succ.get(s, t) == usize::MAX {
-            let path = shortest_path(prev, s, t);
+            let path = shortest_path(prev, s, t)?;
             for i in 0..path.len() {
                 succ.set(path[i], t, if i + 1 < path.len() { path[i + 1] } else { t });
                 if *succ.get(path[i], t) != usize::MAX {
@@ -55,29 +56,28 @@ pub(crate) fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Matrix<usize>
                 }
             }
         }
-    });
+    }
 
-    log::trace!(
-        "Predecessor map has been inverted into the following succcessor map:\n{}",
-        succ
-    );
-
-    succ
+    log::trace!("Predecessor map has been inverted into the following succcessor map:\n{succ}",);
+    Ok(succ)
 }
 
-fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Vec<usize> {
+fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Result<Vec<usize>> {
     let mut p = match prev.get(s, t) {
         Some(_) => vec![t],
-        None => return vec![],
+        None => return Ok(vec![]),
     };
 
     while s != t {
-        t = prev.get(s, t).expect("");
+        t = match prev.get(s, t) {
+            Some(t) => *t,
+            None => return Err(SolverError::PathMatrixCorruptError),
+        };
         p.push(t);
     }
 
     p.reverse();
-    p
+    Ok(p)
 }
 
 #[cfg(test)]
@@ -143,7 +143,7 @@ mod tests {
         let (_, _, _, predecessor_map, _) = setup();
         let path = shortest_path(&predecessor_map, 0, 0);
 
-        assert_eq!(vec![0], path);
+        assert_eq!(vec![0], path.unwrap());
     }
 
     #[test]
@@ -151,7 +151,7 @@ mod tests {
         let (_, _, _, predecessor_map, _) = setup();
         let path = shortest_path(&predecessor_map, 0, 1);
 
-        assert_eq!(vec![0, 2, 1], path);
+        assert_eq!(vec![0, 2, 1], path.unwrap());
     }
 
     #[test]
@@ -159,6 +159,6 @@ mod tests {
         let (_, _, _, predecessor_map, successor_map) = setup();
         let succ = invert_predecessors(&predecessor_map);
 
-        assert_eq!(successor_map, succ);
+        assert_eq!(successor_map, succ.unwrap());
     }
 }
