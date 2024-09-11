@@ -1,11 +1,13 @@
 mod auxiliary_network;
 mod b_tuple;
+mod baseline;
 mod network_state;
 mod preprocessing;
 mod scenario;
 mod solution;
 mod vertex;
 
+use baseline::Baseline;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, fs::File, io::BufReader};
 
@@ -27,6 +29,8 @@ pub struct Network {
     pub balances: Vec<Matrix<usize>>,
     pub fixed_arcs: Vec<(usize, usize)>,
 
+    #[serde(skip)]
+    pub(crate) baseline: Option<Baseline>,
     #[serde(skip)]
     pub(crate) solutions: Option<Vec<ScenarioSolution>>,
     #[serde(skip)]
@@ -125,6 +129,28 @@ impl Network {
         }
     }
 
+    pub fn lower_bound(&mut self) -> Result<(), ()> {
+        log::info!("Attempting to find a lower bound for network cost...");
+        let capacities_memory = self.capacities.clone();
+        for (s, t) in self.fixed_arcs.iter() {
+            self.capacities.set(*s, *t, usize::MAX);
+        }
+        let return_value = match gurobi(self) {
+            Err(_) => Err(()),
+            Ok(solutions) => {
+                self.baseline = Some(Baseline::from_solutions(
+                    &solutions,
+                    &self.fixed_arcs,
+                    &self.costs,
+                    &self.options.cost_fn,
+                ));
+                Ok(())
+            }
+        };
+        self.capacities = capacities_memory;
+        return_value
+    }
+
     pub fn solve(&mut self) -> Result<(), ()> {
         log::info!("Attempting to find a feasible robust flow...");
         let Some(auxiliary_network) = &mut self.auxiliary_network else {
@@ -148,7 +174,10 @@ impl Network {
             RemainderSolveMethod::Greedy => log::debug!("No need to solve remaining network."),
             RemainderSolveMethod::Gurobi => {
                 log::info!("Passing the remaining unsolved network to Gurobi...");
-                let _ = gurobi(self);
+                match gurobi(self) {
+                    Err(_) => panic!("Gurobi could not find a solution."),
+                    Ok(solutions) => self.solutions = Some(solutions),
+                };
             }
         }
     }
@@ -218,7 +247,7 @@ impl Network {
                     solution.slack_total,
                     solution.supply_delivered(self.balances[solution.id].sum()),
                     self.balances[solution.id].sum(),
-                    solution.arc_loads_colorized(&self.fixed_arcs),
+                    solution.arc_loads.highlight(&self.fixed_arcs, colored::Color::Blue),
                 ))
                 .collect::<Vec<String>>()
                 .join("\n"),
@@ -255,6 +284,10 @@ impl Display for Network {
                 .join(", ")
                 .to_string(),
         );
+        string_repr.push(match &self.baseline {
+            Some(baseline) => format!("{}", baseline),
+            None => "Lower bound on cost has not been calculated.".to_string(),
+        });
         string_repr.push(match &self.solutions {
             Some(_) => format!(
                 "{}\n{}",

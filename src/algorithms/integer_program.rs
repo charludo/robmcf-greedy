@@ -4,7 +4,7 @@ use grb::prelude::*;
 
 use crate::{matrix::Matrix, network::ScenarioSolution, Network};
 
-pub fn gurobi(network: &mut Network) -> Result<(), Box<dyn std::error::Error>> {
+pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>, Box<dyn std::error::Error>> {
     let mut state = match &network.solutions {
         Some(solutions) => solutions.clone(),
         None => network
@@ -111,7 +111,6 @@ pub fn gurobi(network: &mut Network) -> Result<(), Box<dyn std::error::Error>> {
             );
         }
     }
-    network.solutions = Some(state);
 
-    Ok(())
+    Ok(state)
 }

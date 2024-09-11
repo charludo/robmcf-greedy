@@ -2,9 +2,11 @@ mod display;
 mod eq;
 mod serde;
 
+use core::fmt;
 use std::fmt::Debug;
 
 use array2d::Array2D;
+use colored::{Color, ColoredString, Colorize};
 
 #[derive(Debug, Clone)]
 pub struct Matrix<T>(pub(super) Array2D<T>);
@@ -184,6 +186,30 @@ impl<T> Matrix<T> {
 
     pub fn num_columns(&self) -> usize {
         self.0.num_columns()
+    }
+}
+
+impl<T> Matrix<T>
+where
+    T: fmt::Display,
+{
+    pub(crate) fn highlight(
+        &self,
+        positions_to_highlight: &[(usize, usize)],
+        color: Color,
+    ) -> Matrix<ColoredString> {
+        let mut highlighted: Matrix<ColoredString> = Matrix::from_elements(
+            self.elements()
+                .map(|x| x.to_string().white())
+                .collect::<Vec<_>>()
+                .as_slice(),
+            self.num_rows(),
+            self.num_columns(),
+        );
+        positions_to_highlight.iter().for_each(|(s, t)| {
+            highlighted.set(*s, *t, highlighted.get(*s, *t).clone().color(color));
+        });
+        highlighted
     }
 }
 

@@ -72,6 +72,7 @@ fn main() {
         Commands::Solve { .. } => {}
     }
 
+    let _ = network.lower_bound();
     network.preprocess();
     if network.solve().is_err() {
         log::error!("Could not solve the network.");

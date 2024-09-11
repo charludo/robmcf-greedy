@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use colored::{ColoredString, Colorize};
-
 use crate::matrix::Matrix;
 
 #[derive(Debug, Clone)]
@@ -28,25 +26,6 @@ impl ScenarioSolution {
 
     pub(crate) fn cost(&self, cost_matrix: &Matrix<usize>) -> usize {
         self.arc_loads.hadamard_product(cost_matrix).sum()
-    }
-
-    pub(crate) fn arc_loads_colorized(
-        &self,
-        fixed_arcs: &[(usize, usize)],
-    ) -> Matrix<ColoredString> {
-        let mut arc_loads_colorized: Matrix<ColoredString> = Matrix::from_elements(
-            self.arc_loads
-                .elements()
-                .map(|x| x.to_string().white())
-                .collect::<Vec<_>>()
-                .as_slice(),
-            self.arc_loads.num_rows(),
-            self.arc_loads.num_columns(),
-        );
-        fixed_arcs.iter().for_each(|(s, t)| {
-            arc_loads_colorized.set(*s, *t, arc_loads_colorized.get(*s, *t).clone().blue());
-        });
-        arc_loads_colorized
     }
 
     pub(crate) fn supply_delivered(&self, supply_total: usize) -> usize {
