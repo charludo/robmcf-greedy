@@ -68,7 +68,7 @@ impl RelativeDrawFunction {
         let draw = (max(0, global - slack as i64) - scenario).pow(e);
 
         // Allow negative draw for even exponents
-        if difference < 0 && e % 2 == 1 {
+        if difference < 0 && e % 2 == 0 {
             -draw
         } else {
             draw
@@ -78,6 +78,7 @@ impl RelativeDrawFunction {
     fn exponential(global: i64, scenario: i64, slack: usize) -> i64 {
         let difference = max(0, global - slack as i64) - scenario;
 
+        // Actually repulse when difference is negative
         if difference < 0 {
             -(difference.abs() as f64).exp() as i64
         } else {

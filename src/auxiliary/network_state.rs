@@ -70,8 +70,7 @@ impl NetworkState {
             .min_by_key(|fixed_arc| {
                 ((*distances.get(s, **fixed_arc) as i64)
                     + (*distances.get(**fixed_arc, dest) as i64))
-                    .checked_sub(-*self.relative_draws.get(fixed_arc).unwrap_or(&0))
-                    .unwrap_or(0)
+                    .saturating_sub(*self.relative_draws.get(fixed_arc).unwrap_or(&0))
             })
             .copied()
     }
