@@ -1,7 +1,6 @@
 use crate::{
-    matrix::Matrix,
     network::{Network, Vertex},
-    Options,
+    Matrix, Options,
 };
 use rand::Rng;
 

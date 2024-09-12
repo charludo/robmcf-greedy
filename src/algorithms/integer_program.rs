@@ -2,7 +2,7 @@
 
 use grb::prelude::*;
 
-use crate::{matrix::Matrix, network::ScenarioSolution, Network, Result, SolverError};
+use crate::{network::ScenarioSolution, Matrix, Network, Result, SolverError};
 
 pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
     let mut state = match &network.solutions {

@@ -5,8 +5,8 @@ mod network;
 mod options;
 mod util;
 
+use matrix::Matrix;
 pub use network::Network;
 pub use network::Vertex;
-pub use options::Options;
 pub use options::*;
 pub use util::{Result, SolverError};

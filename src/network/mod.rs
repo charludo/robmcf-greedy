@@ -10,12 +10,11 @@ pub(super) use crate::auxiliary::AuxiliaryNetwork;
 pub(super) use crate::auxiliary::Scenario;
 use crate::{
     algorithms::{greedy, gurobi},
-    matrix::Matrix,
     options::RemainderSolveMethod,
-    Options,
+    Matrix, Options,
 };
 use crate::{Result, SolverError};
-pub(super) use solution::ScenarioSolution;
+pub(super) use solution::{ScenarioSolution, Solution};
 pub use vertex::Vertex;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]

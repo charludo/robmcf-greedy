@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::HashMap};
 
 use colored::{Color, ColoredString, Colorize};
 
-use crate::{matrix::Matrix, options::CostFunction, Result, SolverError};
+use crate::{options::CostFunction, Matrix, Result, SolverError};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ScenarioSolution {

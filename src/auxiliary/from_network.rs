@@ -3,13 +3,11 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
-    auxiliary::preprocessing::generate_b_tuples,
-    matrix::Matrix,
-    Network, Result,
+    auxiliary::{
+        generate_b_tuples, generate_intermediate_arc_sets, AuxiliaryNetwork, NetworkState, Scenario,
+    },
+    Matrix, Network, Result,
 };
-
-use super::network_state::NetworkState;
-use super::{preprocessing::generate_intermediate_arc_sets, AuxiliaryNetwork, Scenario};
 
 impl AuxiliaryNetwork {
     pub(crate) fn from_network(network: &Network) -> Result<Self> {

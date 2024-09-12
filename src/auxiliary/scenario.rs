@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use crate::{matrix::Matrix, options::RelativeDrawFunction, Result, SolverError};
+use crate::{options::RelativeDrawFunction, Matrix, Result, SolverError};
 
 use super::{b_tuple::BTuple, network_state::NetworkState};
 

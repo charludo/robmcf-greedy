@@ -2,8 +2,7 @@ use std::fmt::Display;
 
 use colored::Color;
 
-use crate::network::solution::Solution;
-use crate::Network;
+use crate::network::{Network, Solution};
 
 impl Network {
     fn display_solutions(&self) -> String {

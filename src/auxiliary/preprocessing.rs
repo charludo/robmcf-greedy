@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use crate::{
-    matrix::Matrix,
     options::{DeltaFunction, RemainderSolveMethod},
+    Matrix,
 };
 
 use super::b_tuple::BTuple;
 
-pub(super) fn generate_b_tuples(
+pub(crate) fn generate_b_tuples(
     supply: &Matrix<usize>,
     remainder_method: RemainderSolveMethod,
     fixed_arc_count: usize,
@@ -50,7 +50,7 @@ pub(super) fn generate_b_tuples(
     (free, HashMap::new())
 }
 
-pub(super) fn generate_intermediate_arc_sets(
+pub(crate) fn generate_intermediate_arc_sets(
     dist: &Matrix<usize>,
     costs: &Matrix<usize>,
     capacities: &Matrix<usize>,

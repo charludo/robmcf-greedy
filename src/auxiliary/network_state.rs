@@ -2,8 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
-    matrix::Matrix,
-    Result, SolverError,
+    Matrix, Result, SolverError,
 };
 
 #[derive(Debug, Clone)]

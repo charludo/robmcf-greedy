@@ -7,6 +7,8 @@ mod scenario;
 use dashmap::DashMap;
 use std::collections::HashMap;
 
+pub(super) use network_state::NetworkState;
+pub(super) use preprocessing::{generate_b_tuples, generate_intermediate_arc_sets};
 pub(crate) use scenario::Scenario;
 
 use crate::{Result, SolverError};

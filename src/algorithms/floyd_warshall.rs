@@ -1,5 +1,4 @@
-use crate::matrix::Matrix;
-use crate::{Result, SolverError};
+use crate::{Matrix, Result, SolverError};
 
 pub(crate) fn floyd_warshall(
     capacities: &Matrix<usize>,
@@ -83,6 +82,7 @@ fn shortest_path(prev: &Matrix<Option<usize>>, s: usize, mut t: usize) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(clippy::complexity)]
     fn setup() -> (
         Matrix<usize>,
         Matrix<usize>,
@@ -90,13 +90,12 @@ mod tests {
         Matrix<Option<usize>>,
         Matrix<usize>,
     ) {
-        let capacities: Matrix<usize> =
-            Matrix::from_elements(&vec![0, 0, 2, 1, 0, 2, 3, 2, 0], 3, 3);
-        let costs: Matrix<usize> = Matrix::from_elements(&vec![0, 0, 3, 4, 0, 6, 7, 8, 0], 3, 3);
+        let capacities: Matrix<usize> = Matrix::from_elements(&[0, 0, 2, 1, 0, 2, 3, 2, 0], 3, 3);
+        let costs: Matrix<usize> = Matrix::from_elements(&[0, 0, 3, 4, 0, 6, 7, 8, 0], 3, 3);
         let distance_map: Matrix<usize> =
-            Matrix::from_elements(&vec![0, 11, 3, 4, 0, 6, 7, 8, 0], 3, 3);
+            Matrix::from_elements(&[0, 11, 3, 4, 0, 6, 7, 8, 0], 3, 3);
         let predecessor_map: Matrix<Option<usize>> = Matrix::from_elements(
-            &vec![
+            &[
                 Some(0),
                 Some(2),
                 Some(0),
@@ -111,7 +110,7 @@ mod tests {
             3,
         );
         let successor_map: Matrix<usize> =
-            Matrix::from_elements(&vec![0, 2, 2, 0, 1, 2, 0, 1, 2], 3, 3);
+            Matrix::from_elements(&[0, 2, 2, 0, 1, 2, 0, 1, 2], 3, 3);
 
         (
             capacities,
