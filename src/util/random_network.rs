@@ -37,15 +37,14 @@ impl Network {
         network.randomize_vertices(num_vertices);
         network.randomize_capacities(arc_density, umin, umax);
         network.randomize_costs(cmin, cmax);
-        network.randomize_balances(num_scenarios, supply_density, bmin, bmax);
+        network.randomize_scenarios(num_scenarios, supply_density, bmin, bmax);
         network.randomize_fixed_arcs(num_fixed_arcs, consecutive_fixed_arcs);
 
         network
     }
-}
 
-impl Network {
     pub fn randomize_vertices(&mut self, num_vertices: usize) {
+        log::debug!("Randomizing vertices: num_vertices={num_vertices}");
         let mut rng = rand::thread_rng();
         self.vertices = (1..=num_vertices)
             .map(|i| Vertex {
@@ -57,27 +56,33 @@ impl Network {
     }
 
     pub fn randomize_capacities(&mut self, arc_density: f64, umin: usize, umax: usize) {
+        log::debug!("Randomizing capacities: arc_density={arc_density}, umin={umin}, umax={umax}.");
         self.capacities =
             self.generate_random_matrix(self.vertices.len(), arc_density, (umin, umax));
     }
 
     pub fn randomize_costs(&mut self, cmin: usize, cmax: usize) {
+        log::debug!("Randomizing costs: cmin={cmin}, cmax={cmax}.");
         self.costs = self.generate_random_matrix(self.vertices.len(), 1.0, (cmin, cmax));
     }
 
-    pub fn randomize_balances(
+    pub fn randomize_scenarios(
         &mut self,
         num_scenarios: usize,
         supply_density: f64,
         bmin: usize,
         bmax: usize,
     ) {
+        log::debug!("Randomizing scenarios: num_scenarios={num_scenarios}, supply_density={supply_density}, bmin={bmin}, bmax={bmax}.");
         self.balances = (0..num_scenarios)
             .map(|_| self.generate_random_matrix(self.vertices.len(), supply_density, (bmin, bmax)))
             .collect();
     }
 
     pub fn randomize_fixed_arcs(&mut self, num_fixed_arcs: usize, consecutive: bool) {
+        log::debug!(
+            "Randomizing fixed arcs: num_fixed_arcs={num_fixed_arcs}, consecutive={consecutive}."
+        );
         let mut fixed_arcs: Vec<(usize, usize)> = Vec::new();
         let mut previous = usize::MAX;
         for _ in 0..num_fixed_arcs {
@@ -88,7 +93,7 @@ impl Network {
                 previous
             };
             let mut a1 = rng.gen_range(0..self.vertices.len());
-            while a0 == a1 || *self.capacities.get(a0, a1) == 0 {
+            while a0 == a1 {
                 a1 = rng.gen_range(0..self.vertices.len());
             }
             fixed_arcs.push((a0, a1));

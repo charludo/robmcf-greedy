@@ -11,6 +11,8 @@ fn main() {
 
     let log_level = if args.quiet {
         LevelFilter::Off
+    } else if args.trace {
+        LevelFilter::Trace
     } else if args.debug {
         LevelFilter::Debug
     } else {
@@ -33,31 +35,22 @@ fn main() {
         Commands::Random {
             output: _,
             vertices,
-            fixed,
-            fixed_consecutive,
-            arc_density,
-            umin,
-            umax,
-            cmin,
-            cmax,
-            scenarios,
-            supply_density,
-            bmin,
-            bmax,
+            random,
+            ..
         } => Ok(Network::from_random(
             &options,
             *vertices,
-            *arc_density,
-            *supply_density,
-            *scenarios,
-            *umin,
-            *umax,
-            *cmin,
-            *cmax,
-            *bmin,
-            *bmax,
-            *fixed,
-            *fixed_consecutive,
+            random.arc_density,
+            random.supply_density,
+            random.scenarios,
+            random.umin,
+            random.umax,
+            random.cmin,
+            random.cmax,
+            random.bmin,
+            random.bmax,
+            random.fixed,
+            random.fixed_consecutive,
         )),
         Commands::Benchmark { file, .. } => Network::from_file(&options, file),
         Commands::Solve { file, .. } => Network::from_file(&options, file),
@@ -71,22 +64,56 @@ fn main() {
         }
     };
 
-    attempt!(network.validate_network());
-
-    match &args.command {
+    let (output, skip_lower_bound) = match &args.command {
         Commands::Benchmark { iterations, .. } => {
+            attempt!(network.validate_network());
             run_benchmark(&network, *iterations);
             return;
         }
-        Commands::Random { output, .. } => {
+        Commands::Random {
+            output,
+            skip_lower_bound,
+            ..
+        } => (output, skip_lower_bound),
+        Commands::Solve {
+            randomize_capacities,
+            randomize_costs,
+            randomize_scenarios,
+            randomize_fixed_arcs,
+            random,
+            output,
+            skip_lower_bound,
+            ..
+        } => {
+            if *randomize_capacities {
+                network.randomize_capacities(random.arc_density, random.umin, random.umax);
+            }
+            if *randomize_costs {
+                network.randomize_costs(random.cmin, random.cmax);
+            }
+            if *randomize_scenarios {
+                network.randomize_scenarios(
+                    random.scenarios,
+                    random.supply_density,
+                    random.bmin,
+                    random.bmax,
+                );
+            }
+            if *randomize_fixed_arcs {
+                network.randomize_fixed_arcs(random.fixed, random.fixed_consecutive);
+            }
             if let Some(file) = output {
                 attempt!(network.serialize(file));
             }
+            (output, skip_lower_bound)
         }
-        Commands::Solve { .. } => {}
-    }
+    };
 
-    if !&args.skip_baseline {
+    attempt!(network.validate_network());
+    if let Some(output) = output {
+        attempt!(network.serialize(output));
+    }
+    if !skip_lower_bound {
         attempt!(network.lower_bound());
     }
     attempt!(network.preprocess());
