@@ -10,94 +10,126 @@ impl Network {
     pub fn from_random(
         options: &Options,
         num_vertices: usize,
-        connectedness: f64,
+        arc_density: f64,
         supply_density: f64,
         num_scenarios: usize,
-        range_supply: (usize, usize),
-        range_capacity: (usize, usize),
-        range_cost: (usize, usize),
+        umin: usize,
+        umax: usize,
+        cmin: usize,
+        cmax: usize,
+        bmin: usize,
+        bmax: usize,
         num_fixed_arcs: usize,
+        consecutive_fixed_arcs: bool,
     ) -> Self {
-        let vertices: Vec<Vertex> = (1..=num_vertices)
-            .map(|i| Vertex {
-                name: format!("v{}", i),
-                x: generate_random_coordinate(num_vertices),
-                y: generate_random_coordinate(num_vertices),
-            })
-            .collect();
-        let capacities: Matrix<usize> =
-            generate_random_matrix(num_vertices, connectedness, range_capacity);
-        let costs: Matrix<usize> = generate_random_matrix(num_vertices, 1.0, range_cost);
-        let balances: Vec<Matrix<usize>> = (0..num_scenarios)
-            .map(|_| generate_random_matrix(num_vertices, supply_density, range_supply))
-            .collect();
-        let fixed_arcs: Vec<(usize, usize)> = (0..num_fixed_arcs)
-            .map(|_| generate_random_fixed_arc(num_vertices, &capacities))
-            .collect();
-
-        Network {
-            vertices,
-            capacities,
-            costs,
-            balances,
-            fixed_arcs,
+        let mut network = Network {
+            vertices: vec![],
+            capacities: Matrix::empty(),
+            costs: Matrix::empty(),
+            balances: vec![],
+            fixed_arcs: vec![],
             auxiliary_network: None,
             baseline: None,
             solutions: None,
             options: options.clone(),
-        }
+        };
+
+        network.randomize_vertices(num_vertices);
+        network.randomize_capacities(arc_density, umin, umax);
+        network.randomize_costs(cmin, cmax);
+        network.randomize_balances(num_scenarios, supply_density, bmin, bmax);
+        network.randomize_fixed_arcs(num_fixed_arcs, consecutive_fixed_arcs);
+
+        network
     }
 }
 
-fn generate_random_coordinate(num_vertices: usize) -> f32 {
-    let mut rng = rand::thread_rng();
-    let p = rng.gen_range((-100 * num_vertices as i64)..(100 * num_vertices as i64));
-    p as f32
-}
-
-fn generate_random_fixed_arc(num_vertices: usize, capacities: &Matrix<usize>) -> (usize, usize) {
-    let mut rng = rand::thread_rng();
-
-    let mut a0 = rng.gen_range(0..num_vertices);
-    let mut a1 = rng.gen_range(0..num_vertices);
-    while a0 == a1 || *capacities.get(a0, a1) == 0 {
-        a0 = rng.gen_range(0..num_vertices);
-        a1 = rng.gen_range(0..num_vertices);
+impl Network {
+    pub fn randomize_vertices(&mut self, num_vertices: usize) {
+        let mut rng = rand::thread_rng();
+        self.vertices = (1..=num_vertices)
+            .map(|i| Vertex {
+                name: format!("v{}", i),
+                x: rng.gen_range((-100 * num_vertices as i64)..(100 * num_vertices as i64)) as f32,
+                y: rng.gen_range((-100 * num_vertices as i64)..(100 * num_vertices as i64)) as f32,
+            })
+            .collect();
     }
 
-    (a0, a1)
-}
+    pub fn randomize_capacities(&mut self, arc_density: f64, umin: usize, umax: usize) {
+        self.capacities =
+            self.generate_random_matrix(self.vertices.len(), arc_density, (umin, umax));
+    }
 
-fn generate_random_vec(
-    num_vertices: usize,
-    connectedness: f64,
-    range_values: (usize, usize),
-) -> Vec<usize> {
-    let mut rng = rand::thread_rng();
+    pub fn randomize_costs(&mut self, cmin: usize, cmax: usize) {
+        self.costs = self.generate_random_matrix(self.vertices.len(), 1.0, (cmin, cmax));
+    }
 
-    (0..num_vertices)
-        .map(|_| {
-            if rng.gen_bool(connectedness) {
-                rng.gen_range(range_values.0..=range_values.1)
+    pub fn randomize_balances(
+        &mut self,
+        num_scenarios: usize,
+        supply_density: f64,
+        bmin: usize,
+        bmax: usize,
+    ) {
+        self.balances = (0..num_scenarios)
+            .map(|_| self.generate_random_matrix(self.vertices.len(), supply_density, (bmin, bmax)))
+            .collect();
+    }
+
+    pub fn randomize_fixed_arcs(&mut self, num_fixed_arcs: usize, consecutive: bool) {
+        let mut fixed_arcs: Vec<(usize, usize)> = Vec::new();
+        let mut previous = usize::MAX;
+        for _ in 0..num_fixed_arcs {
+            let mut rng = rand::thread_rng();
+            let a0 = if !consecutive || previous == usize::MAX {
+                rng.gen_range(0..self.vertices.len())
             } else {
-                0
+                previous
+            };
+            let mut a1 = rng.gen_range(0..self.vertices.len());
+            while a0 == a1 || *self.capacities.get(a0, a1) == 0 {
+                a1 = rng.gen_range(0..self.vertices.len());
             }
-        })
-        .collect()
-}
-
-fn generate_random_matrix(
-    num_vertices: usize,
-    connectedness: f64,
-    range_values: (usize, usize),
-) -> Matrix<usize> {
-    let mut matrix = Matrix::from_rows(
-        &(0..num_vertices)
-            .map(|_| generate_random_vec(num_vertices, connectedness, range_values))
-            .collect::<Vec<Vec<usize>>>(),
-    );
-    for v in 0..num_vertices {
-        matrix.set(v, v, 0);
+            fixed_arcs.push((a0, a1));
+            previous = a1;
+        }
+        self.fixed_arcs = fixed_arcs;
     }
-    matrix
+
+    fn generate_random_vec(
+        &self,
+        num_vertices: usize,
+        connectedness: f64,
+        range_values: (usize, usize),
+    ) -> Vec<usize> {
+        let mut rng = rand::thread_rng();
+
+        (0..num_vertices)
+            .map(|_| {
+                if rng.gen_bool(connectedness) {
+                    rng.gen_range(range_values.0..=range_values.1)
+                } else {
+                    0
+                }
+            })
+            .collect()
+    }
+
+    fn generate_random_matrix(
+        &self,
+        num_vertices: usize,
+        connectedness: f64,
+        range_values: (usize, usize),
+    ) -> Matrix<usize> {
+        let mut matrix = Matrix::from_rows(
+            &(0..num_vertices)
+                .map(|_| self.generate_random_vec(num_vertices, connectedness, range_values))
+                .collect::<Vec<Vec<usize>>>(),
+        );
+        for v in 0..num_vertices {
+            matrix.set(v, v, 0);
+        }
+        matrix
+    }
 }

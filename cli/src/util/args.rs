@@ -71,6 +71,10 @@ pub(crate) enum Commands {
         #[arg(long, default_value_t = 5)]
         fixed: usize,
 
+        /// Number of fixed arcs
+        #[arg(long)]
+        fixed_consecutive: bool,
+
         /// Connectedness as the fraction of arcs with a capacity greater than zero
         #[arg(short, long, default_value_t = 0.4)]
         arc_density: f64,
@@ -97,7 +101,7 @@ pub(crate) enum Commands {
 
         /// Fraction of vertices each vertex has supply greater than zero for
         #[arg(long, default_value_t = 0.3)]
-        balance_density: f64,
+        supply_density: f64,
 
         /// Minimum supply value
         #[arg(long, default_value_t = 2)]
