@@ -28,16 +28,20 @@ impl Scenario {
         for &key in self.b_tuples_fixed.keys().chain(global_waiting.keys()) {
             let scenario_draw = self.waiting_at(key);
             let global_draw = *global_waiting.get(&key).unwrap_or(&0);
-            let relative_draw = draw_fn.apply(global_draw as i64, scenario_draw as i64, self.slack);
+            let relative_draw = draw_fn.apply(
+                global_draw as i64,
+                scenario_draw as i64,
+                self.slack - self.slack_used,
+            );
             self.network_state.relative_draws.insert(key, relative_draw);
         }
     }
 
     pub(crate) fn use_slack(&mut self, amount: usize) -> Result<()> {
-        self.slack_used += amount;
-        if amount >= self.slack {
+        if self.slack_used + amount > self.slack {
             Err(SolverError::NoSlackLeftError(self.id))
         } else {
+            self.slack_used += amount;
             Ok(())
         }
     }
