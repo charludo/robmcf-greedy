@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
-use robmcf_greedy::options::*;
+use robmcf_greedy::{
+    CostFunction, DeltaFunction, RelativeDrawFunction, RemainderSolveMethod, SlackFunction,
+};
 
 /// CLI for the Greedy RobMCF solver library.
 #[derive(Parser, Debug)]
