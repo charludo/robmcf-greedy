@@ -174,6 +174,11 @@ pub(crate) enum Commands {
         #[command(flatten)]
         random: RandomizationArgs,
     },
+    /// Attempt to solve the entire network via an ILP. No greedy involvement.
+    Ilp {
+        /// Path to a file containing a network to be used as input.
+        file: String,
+    },
     /// Benchmark the solution process. Should use "No" or "Greedy" for the remainder function.
     Benchmark {
         /// Path to a file containing a network to be used as input.

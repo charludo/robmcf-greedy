@@ -54,6 +54,7 @@ fn main() {
         )),
         Commands::Benchmark { file, .. } => Network::from_file(&options, file),
         Commands::Solve { file, .. } => Network::from_file(&options, file),
+        Commands::Ilp { file } => Network::from_file(&options, file),
     };
 
     let mut network = match network {
@@ -68,6 +69,12 @@ fn main() {
         Commands::Benchmark { iterations, .. } => {
             attempt!(network.validate_network());
             run_benchmark(&network, *iterations);
+            return;
+        }
+        Commands::Ilp { .. } => {
+            network.options.remainder_solve_method = robmcf_greedy::RemainderSolveMethod::Ilp;
+            attempt!(network.solve_full_ilp());
+            println!("{}", network);
             return;
         }
         Commands::Random {

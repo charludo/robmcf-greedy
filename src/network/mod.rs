@@ -6,6 +6,7 @@ mod vertex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
+use crate::algorithms::gurobi_full;
 pub(super) use crate::auxiliary::AuxiliaryNetwork;
 pub(super) use crate::auxiliary::Scenario;
 use crate::{
@@ -173,9 +174,22 @@ impl Network {
         }
     }
 
+    pub fn solve_full_ilp(&mut self) -> Result<()> {
+        log::info!("Attempting to solve the network as an ILP...");
+        match gurobi_full(self) {
+            Ok(solutions) => {
+                self.solutions = Some(solutions);
+                log::info!("Found a solution.");
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     pub fn solve_remainder(&mut self) -> Result<()> {
         match self.options.remainder_solve_method {
             RemainderSolveMethod::None => log::info!("Skipping solve of remaining network."),
+            RemainderSolveMethod::Ilp => log::error!("How did you get here??"),
             RemainderSolveMethod::Greedy => log::debug!("No need to solve remaining network."),
             RemainderSolveMethod::Gurobi => {
                 log::info!("Passing the remaining unsolved network to Gurobi...");

@@ -8,6 +8,8 @@ pub enum RemainderSolveMethod {
     None,
     Greedy,
     Gurobi,
+    #[clap(skip)]
+    Ilp,
 }
 
 impl Display for RemainderSolveMethod {
@@ -16,6 +18,7 @@ impl Display for RemainderSolveMethod {
             Self::None => write!(f, "Only relevant (s, t) pairs were considered in the greedy solution. The remainder of the network has not been solved."),
             Self::Greedy => write!(f, "The entire network was solved greedily."),
             Self::Gurobi => write!(f, "Only relevant (s, t) pairs were considered in the greedy solution. The remainder of the network has been solved via an ILP."),
+            Self::Ilp => write!(f, "The entire network has been solved via ILP.")
         }
     }
 }
