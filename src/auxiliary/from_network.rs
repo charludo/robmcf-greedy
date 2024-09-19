@@ -37,7 +37,6 @@ impl AuxiliaryNetwork {
         );
 
         let scenarios: DashMap<usize, Scenario> = DashMap::new();
-        let slack = network.options.slack_fn.apply(&network.balances);
         network
             .balances
             .iter()
@@ -72,8 +71,6 @@ impl AuxiliaryNetwork {
                 let scenario = Scenario {
                     id: i,
                     supply_tokens,
-                    slack: slack[i],
-                    slack_used: 0,
                     supply_remaining: balance.clone(),
                     network_state,
                 };

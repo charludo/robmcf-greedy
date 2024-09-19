@@ -108,15 +108,14 @@ pub(crate) fn gurobi_full(network: &mut Network) -> Result<Vec<ScenarioSolution>
             let consistent_flow = scenario_arc_loads
                 .iter()
                 .map(|arc_loads| *arc_loads.get(*a_0, *a_1))
-                .min()
+                .max()
                 .unwrap_or(0);
-            slack += *scenario_arc_loads[i].get(*a_0, *a_1) - consistent_flow;
+            slack += consistent_flow - *scenario_arc_loads[i].get(*a_0, *a_1);
         }
 
         solutions.push(ScenarioSolution {
             id: i,
-            slack_total: slack_values[i],
-            slack_remaining: slack_values[i] - slack,
+            slack,
             supply_remaining: Matrix::filled_with(
                 0,
                 network.vertices.len(),

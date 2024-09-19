@@ -7,10 +7,7 @@ use crate::{options::CostFunction, Matrix};
 #[derive(Debug, Clone)]
 pub(crate) struct ScenarioSolution {
     pub(crate) id: usize,
-
-    pub(crate) slack_total: usize,
-    pub(crate) slack_remaining: usize,
-
+    pub(crate) slack: usize,
     pub(crate) supply_remaining: Matrix<usize>,
     pub(crate) arc_loads: Matrix<usize>,
 }
@@ -19,8 +16,7 @@ impl ScenarioSolution {
     pub(crate) fn new(id: usize, supply: &Matrix<usize>) -> Self {
         ScenarioSolution {
             id,
-            slack_total: 0,
-            slack_remaining: 0,
+            slack: 0,
             supply_remaining: supply.clone(),
             arc_loads: Matrix::filled_with(0, supply.num_rows(), supply.num_columns()),
         }
@@ -32,10 +28,6 @@ impl ScenarioSolution {
 
     pub(crate) fn supply_delivered(&self, supply_total: usize) -> usize {
         supply_total - self.supply_remaining.sum()
-    }
-
-    pub(crate) fn slack_used(&self) -> usize {
-        self.slack_total - self.slack_remaining
     }
 }
 

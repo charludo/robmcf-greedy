@@ -13,11 +13,11 @@ impl Network {
             "The following arc loads constitute the solution:\n{}\nThe network cost is {}.",
             solutions.iter()
                 .map(|solution| format!(
-                    "Scenario {}, with cost {} and {}/{} slack used in delivery of {}/{} supply units:\n{}",
+                    "Scenario {}, with cost {} and {} slack used (target: < {}) in delivery of {}/{} supply units:\n{}",
                     solution.id,
                     solution.cost(&self.costs),
-                    solution.slack_used(),
-                    solution.slack_total,
+                    solution.slack,
+                    self.options.slack_fn.apply(&self.balances)[solution.id],
                     solution.supply_delivered(self.balances[solution.id].sum()),
                     self.balances[solution.id].sum(),
                     solution.arc_loads.highlight(&self.fixed_arcs, colored::Color::Blue),

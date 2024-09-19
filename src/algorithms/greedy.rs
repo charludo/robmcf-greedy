@@ -62,14 +62,32 @@ pub(crate) fn greedy(
 }
 
 fn get_solutions(network: &AuxiliaryNetwork) -> Result<Vec<ScenarioSolution>> {
+    let total_consistent_flows: usize = network
+        .fixed_arcs
+        .iter()
+        .map(|(a_0, a_1)| {
+            network
+                .scenarios
+                .iter()
+                .map(|scenario| *scenario.network_state.arc_loads.get(*a_0, *a_1))
+                .max()
+                .unwrap_or(0)
+        })
+        .sum();
     network
         .scenarios
         .iter()
         .map(|scenario| -> Result<ScenarioSolution> {
+            let slack: usize = total_consistent_flows.saturating_sub(
+                network
+                    .fixed_arcs
+                    .iter()
+                    .map(|(a_0, a_1)| *scenario.network_state.arc_loads.get(*a_0, *a_1))
+                    .sum::<usize>(),
+            );
             Ok(ScenarioSolution {
                 id: scenario.id,
-                slack_total: scenario.slack,
-                slack_remaining: scenario.slack - scenario.slack_used,
+                slack,
                 supply_remaining: scenario.supply_remaining.clone(),
                 arc_loads: scenario.network_state.arc_loads.clone(),
             })
