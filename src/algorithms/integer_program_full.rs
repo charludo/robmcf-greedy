@@ -18,7 +18,6 @@ pub fn gurobi_full(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
         &network.options.delta_fn,
     );
     let slack_values = network.options.slack_fn.apply(&network.balances);
-    log::error!("{:?}", slack_values);
 
     let env = match log::log_enabled!(log::Level::Debug) {
         true => Env::new("gurobi.log")?,

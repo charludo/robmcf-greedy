@@ -2,7 +2,12 @@
 
 use grb::prelude::*;
 
-use crate::{network::ScenarioSolution, Matrix, Network, Result, SolverError};
+use crate::{
+    auxiliary::generate_intermediate_arc_sets, network::ScenarioSolution, Matrix, Network, Result,
+    SolverError,
+};
+
+use super::floyd_warshall;
 
 pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
     let mut state = match &network.solutions {
@@ -14,7 +19,7 @@ pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
             .map(|(i, b)| ScenarioSolution::new(i, b))
             .collect::<Vec<_>>(),
     };
-    for (i_scenario, scenario) in state.iter_mut().enumerate() {
+    for (lambda, scenario) in state.iter_mut().enumerate() {
         let env = match log::log_enabled!(log::Level::Debug) {
             true => Env::new("gurobi.log")?,
             false => {
@@ -24,55 +29,79 @@ pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
             }
         };
 
-        let mut model = Model::with_env(&format!("scenario_{i_scenario}"), env)?;
+        let mut model = Model::with_env(&format!("scenario_{lambda}"), env)?;
         let capacities = &network.capacities.subtract(&scenario.arc_loads);
+        let (dist, _) = floyd_warshall(capacities, &network.costs);
+        let arc_sets = generate_intermediate_arc_sets(
+            &dist,
+            &network.costs,
+            capacities,
+            &network.options.delta_fn,
+        );
 
-        let mut commodity_flows = Vec::new();
-        for (i_commodity, commodity) in network.vertices.iter().enumerate() {
-            let mut rows = Vec::new();
-            for (i, u_row) in capacities.rows_iter().enumerate() {
-                let mut row = Vec::new();
-                for (j, u) in u_row.enumerate() {
-                    // Add a variable for every arc. The bounds already encode the capacity constraints
-                    let var = add_intvar!(model, name: &format!("f_{}(({i},{j}))", commodity.name), bounds: 0..*u)?;
-                    row.push(var);
-                }
-                rows.push(row);
+        let mut commodity_flows: Matrix<Matrix<Var>> = Matrix::filled_with(
+            Matrix::empty(),
+            network.vertices.len(),
+            network.vertices.len(),
+        );
+        for (s, t) in commodity_flows.indices() {
+            // Generate variables
+            let mut s_t_flows = Vec::new();
+            for (u, v) in capacities.indices() {
+                let upper_bound = if *arc_sets.get(s, t).get(u, v) {
+                    // Fixed arcs have unlimited capacity
+                    if network.fixed_arcs.contains(&(u, v)) {
+                        usize::MAX
+                    } else {
+                        *network.capacities.get(u, v)
+                    }
+                } else {
+                    0
+                };
+                // Combines non-negative, capacity, and intermediate arc set bounds
+                s_t_flows.push(add_intvar!(model, name: &format!("f^{lambda}_({s},{t})(({u},{v}))"), bounds: 0..upper_bound)?);
             }
-            let vars = Matrix::from_rows(&rows);
 
-            // Multi-Commodity flow balance constraint
-            for i_vertex in 0..network.vertices.len() {
-                let outgoing_flow = vars.as_rows()[i_vertex].clone().grb_sum();
-                let incoming_flow = vars.as_columns()[i_vertex].clone().grb_sum();
+            let s_t_flows =
+                Matrix::from_elements(&s_t_flows, network.vertices.len(), network.vertices.len());
 
-                if i_commodity != i_vertex {
-                    let commodity_supply_from_vertex =
-                        scenario.supply_remaining.get(i_vertex, i_commodity);
+            // (s, t) flow balance constraints
+            for vertex in 0..network.vertices.len() {
+                let outgoing_flow = s_t_flows.as_rows()[vertex].clone().grb_sum();
+                let incoming_flow = s_t_flows.as_columns()[vertex].clone().grb_sum();
+
+                if vertex == s {
                     let _ = model.add_constr(
-                        &format!("flow_balance_{i_commodity}({i_vertex})"),
-                        c!(outgoing_flow - incoming_flow == commodity_supply_from_vertex),
+                        &format!("flow_balance^{lambda}_({s}{t})({vertex})"),
+                        c!(outgoing_flow - incoming_flow == *scenario.supply_remaining.get(s, t)),
+                    )?;
+                } else if vertex == t {
+                    let _ = model.add_constr(
+                        &format!("flow_balance^{lambda}_({s}{t})({vertex})"),
+                        c!(incoming_flow - outgoing_flow == *scenario.supply_remaining.get(s, t)),
                     )?;
                 } else {
-                    let total_commodity_demand: i64 =
-                        scenario.supply_remaining.as_columns()[i_commodity]
-                            .iter()
-                            .sum::<usize>() as i64;
                     let _ = model.add_constr(
-                        &format!("flow_balance_{i_commodity}"),
-                        c!(outgoing_flow - incoming_flow == -total_commodity_demand),
+                        &format!("flow_balance^{lambda}_({s}{t})({vertex})"),
+                        c!(outgoing_flow - incoming_flow == 0),
                     )?;
                 }
             }
 
-            commodity_flows.push(vars);
+            commodity_flows.set(s, t, s_t_flows);
         }
 
         // Pre-compute expressions for the total flow along each arc
-        let commodity_loads = Matrix::from_elements(
-            capacities
+        let arc_loads = Matrix::from_elements(
+            network
+                .capacities
                 .indices()
-                .map(|(s, t)| commodity_flows.iter().map(|c_f| c_f.get(s, t)).grb_sum())
+                .map(|(u, v)| {
+                    commodity_flows
+                        .elements()
+                        .map(|c_f| c_f.get(u, v))
+                        .grb_sum()
+                })
                 .collect::<Vec<_>>()
                 .as_slice(),
             network.vertices.len(),
@@ -80,10 +109,14 @@ pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
         );
 
         // Capacity constraints
-        for (s, t) in capacities.indices() {
+        for (u, v) in capacities.indices() {
+            // Fixed arcs have unlimited capacity
+            if network.fixed_arcs.contains(&(u, v)) {
+                continue;
+            }
             let _ = model.add_constr(
-                &format!("capacity_({s},{t})"),
-                c!(commodity_loads.get(s, t).clone() <= *capacities.get(s, t)),
+                &format!("capacity^{lambda}_({u},{v})"),
+                c!(arc_loads.get(u, v).clone() <= *capacities.get(u, v)),
             )?;
         }
 
@@ -91,10 +124,10 @@ pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
         let total_scenario_cost = network
             .costs
             .indices()
-            .map(|(s, t)| commodity_loads.get(s, t).clone() * *network.costs.get(s, t))
+            .map(|(u, v)| arc_loads.get(u, v).clone() * *network.costs.get(u, v))
             .grb_sum();
         model.set_objective(total_scenario_cost, Minimize)?;
-        model.write(&format!("scenario_{i_scenario}.lp"))?;
+        model.write(&format!("scenario_{lambda}.lp"))?;
 
         model.optimize()?;
         match model.status()? {
@@ -102,7 +135,8 @@ pub fn gurobi(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
             Status::SubOptimal => {}
             _ => return Err(SolverError::GurobiSolutionError(scenario.id)),
         }
-        for commodity_flow in &commodity_flows {
+
+        for commodity_flow in commodity_flows.elements() {
             let result = model.get_obj_attr_batch(attr::X, commodity_flow.elements().copied())?;
             scenario.arc_loads = scenario.arc_loads.add(&Matrix::from_elements(
                 result
