@@ -6,14 +6,9 @@ mod vertex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
-use crate::algorithms::gurobi_full;
 pub(super) use crate::auxiliary::AuxiliaryNetwork;
 pub(super) use crate::auxiliary::Scenario;
-use crate::{
-    algorithms::{greedy, gurobi},
-    options::RemainderSolveMethod,
-    Matrix, Options,
-};
+use crate::{options::RemainderSolveMethod, Matrix, Options};
 use crate::{Result, SolverError};
 pub(super) use solution::{ScenarioSolution, Solution};
 pub use vertex::Vertex;
@@ -142,7 +137,7 @@ impl Network {
         for (s, t) in self.fixed_arcs.iter() {
             self.capacities.set(*s, *t, usize::MAX);
         }
-        match gurobi(self) {
+        match crate::ilp::gurobi_partial(self) {
             Err(e) => {
                 self.capacities = capacities_memory;
                 Err(e)
@@ -164,7 +159,7 @@ impl Network {
         };
         log::debug!("Found auxiliary network, calling greedy on it...");
 
-        match greedy(auxiliary_network, &self.options) {
+        match crate::algorithms::greedy(auxiliary_network, &self.options) {
             Ok(solutions) => {
                 self.solutions = Some(solutions);
                 log::info!("Found a solution.");
@@ -176,7 +171,7 @@ impl Network {
 
     pub fn solve_full_ilp(&mut self) -> Result<()> {
         log::info!("Attempting to solve the network as an ILP...");
-        match gurobi_full(self) {
+        match crate::ilp::gurobi_full(self) {
             Ok(solutions) => {
                 self.solutions = Some(solutions);
                 log::info!("Found a solution.");
@@ -193,7 +188,7 @@ impl Network {
             RemainderSolveMethod::Greedy => log::debug!("No need to solve remaining network."),
             RemainderSolveMethod::Gurobi => {
                 log::info!("Passing the remaining unsolved network to Gurobi...");
-                let solutions = gurobi(self)?;
+                let solutions = crate::ilp::gurobi_partial(self)?;
                 self.solutions = Some(solutions);
             }
         }
