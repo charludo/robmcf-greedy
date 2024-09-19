@@ -48,42 +48,40 @@ pub(crate) fn greedy(
 
 fn handle_free(scenario: &mut Scenario, fixed_arcs: &[usize]) -> Result<()> {
     let mut i = 0;
-    while i < scenario.b_tuples_free.len() {
-        let b_tuple = &mut scenario.b_tuples_free[i];
+    while i < scenario.tokens_free.len() {
+        let tokens = &mut scenario.tokens_free[i];
         let next_vertex = scenario.network_state.get_next_vertex(
             scenario.id,
-            b_tuple.origin,
-            b_tuple.s,
-            b_tuple.t,
+            tokens.origin,
+            tokens.s,
+            tokens.t,
         )?;
 
         log::debug!(
             "Moving supply in scenario {} with origin {} and destination {} via: ({}->{})",
             scenario.id,
-            b_tuple.origin,
-            b_tuple.t,
-            b_tuple.s,
+            tokens.origin,
+            tokens.t,
+            tokens.s,
             next_vertex
         );
 
-        scenario.network_state.use_arc(b_tuple.s, next_vertex);
-        b_tuple.s = next_vertex;
+        scenario.network_state.use_arc(tokens.s, next_vertex);
+        tokens.s = next_vertex;
 
-        if b_tuple.s == b_tuple.t {
-            scenario
-                .supply_remaining
-                .decrement(b_tuple.origin, b_tuple.t);
-            scenario.b_tuples_free.remove(i);
+        if tokens.s == tokens.t {
+            scenario.supply_remaining.decrement(tokens.origin, tokens.t);
+            scenario.tokens_free.remove(i);
             continue;
         }
 
         if fixed_arcs.contains(&next_vertex) {
             scenario
-                .b_tuples_fixed
+                .tokens_fixed
                 .entry(next_vertex)
                 .or_default()
-                .push(b_tuple.clone());
-            scenario.b_tuples_free.remove(i);
+                .push(tokens.clone());
+            scenario.tokens_free.remove(i);
         }
 
         i += 1;
@@ -120,7 +118,7 @@ fn handle_fixed(
         );
 
         let mut consistently_moved_supply = scenario
-            .b_tuples_fixed
+            .tokens_fixed
             .entry(*fixed_arc)
             .or_default()
             .drain(0..consistent_flow_to_move)
@@ -128,23 +126,21 @@ fn handle_fixed(
 
         let mut i = 0;
         while i < consistently_moved_supply.len() {
-            let b_tuple = &mut consistently_moved_supply[i];
+            let tokens = &mut consistently_moved_supply[i];
             let fixed_arc_terminal = network.get_fixed_arc_terminal(*fixed_arc)?;
             scenario
                 .network_state
                 .use_arc(*fixed_arc, fixed_arc_terminal);
-            b_tuple.s = fixed_arc_terminal;
-            if b_tuple.s == b_tuple.t {
-                scenario
-                    .supply_remaining
-                    .decrement(b_tuple.origin, b_tuple.t);
+            tokens.s = fixed_arc_terminal;
+            if tokens.s == tokens.t {
+                scenario.supply_remaining.decrement(tokens.origin, tokens.t);
                 consistently_moved_supply.remove(i);
                 continue;
             }
 
             i += 1;
         }
-        scenario.b_tuples_free.extend(consistently_moved_supply)
+        scenario.tokens_free.extend(consistently_moved_supply)
     }
 
     Ok(())

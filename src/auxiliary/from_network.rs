@@ -4,7 +4,8 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
     auxiliary::{
-        generate_b_tuples, generate_intermediate_arc_sets, AuxiliaryNetwork, NetworkState, Scenario,
+        generate_intermediate_arc_sets, generate_supply_tokens, AuxiliaryNetwork, NetworkState,
+        Scenario,
     },
     Matrix, Network, Result,
 };
@@ -62,7 +63,7 @@ impl AuxiliaryNetwork {
 
         let arc_loads = Matrix::filled_with(0, num_vertices, num_vertices);
 
-        // while in later iterations, capacities can differ between (s, t) pairs in BTuples,
+        // while in later iterations, capacities can differ between (s, t) pairs in tokens,
         // we can initially reuse distance and successor maps between all (s, t) pairs and
         // balances, since the arcs for the globally shortest path from s to t is guaranteed to
         // be included in in the intermediate arc set of (s, t).
@@ -92,7 +93,7 @@ impl AuxiliaryNetwork {
                 relative_draws: HashMap::new(),
             };
 
-            let (b_tuples_free, b_tuples_fixed) = generate_b_tuples(
+            let (tokens_free, tokens_fixed) = generate_supply_tokens(
                 balance,
                 network.options.remainder_solve_method.clone(),
                 network.fixed_arcs.len(),
@@ -100,8 +101,8 @@ impl AuxiliaryNetwork {
             );
             let scenario = Scenario {
                 id: i,
-                b_tuples_free,
-                b_tuples_fixed,
+                tokens_free,
+                tokens_fixed,
                 slack: slack[i],
                 slack_used: 0,
                 supply_remaining: balance.clone(),

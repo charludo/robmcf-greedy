@@ -5,15 +5,15 @@ use crate::{
     Matrix,
 };
 
-use super::b_tuple::BTuple;
+use super::supply_token::SupplyToken;
 
-pub(crate) fn generate_b_tuples(
+pub(crate) fn generate_supply_tokens(
     supply: &Matrix<usize>,
     remainder_method: RemainderSolveMethod,
     fixed_arc_count: usize,
     arc_sets: &Matrix<Matrix<bool>>,
-) -> (Vec<BTuple>, HashMap<usize, Vec<BTuple>>) {
-    let mut free: Vec<BTuple> = vec![];
+) -> (Vec<SupplyToken>, HashMap<usize, Vec<SupplyToken>>) {
+    let mut free: Vec<SupplyToken> = vec![];
     supply
         .indices()
         .filter(|(s, t)| s != t && *supply.get(*s, *t) > 0)
@@ -28,22 +28,22 @@ pub(crate) fn generate_b_tuples(
                         .iter()
                         .any(|c| c.iter().any(|&e| e))
                     {
-                        log::debug!("Skipped BTuple for ({s}, {t}) because it cannot be routed via any fixed arc.");
+                        log::debug!("Skipped SupplyToken for ({s}, {t}) because it cannot be routed via any fixed arc.");
                         return;
                     }
                 }
             }
 
-            let b_tuple = BTuple { origin: s, s, t };
+            let token = SupplyToken { origin: s, s, t };
 
             log::debug!(
-                "Generated {} BTuples for ({s}, {t}):\n{b_tuple}",
+                "Generated {} tokens for ({s}, {t}):\n{token}",
                 *supply.get(s, t),
             );
 
             // we are working with single units of supply in order to prevent dead ends,
             // and initially, all supply is free
-            let supply_at_s_t = vec![b_tuple; *supply.get(s, t)];
+            let supply_at_s_t = vec![token; *supply.get(s, t)];
             free.extend(supply_at_s_t);
         });
 
@@ -131,11 +131,11 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_b_tuples() {
+    fn test_generate_supply_tokens() {
         let supply: Matrix<usize> = Matrix::from_elements(&vec![0, 2, 1, 1, 0, 1, 0, 6, 0], 3, 3);
 
         let actual_result =
-            generate_b_tuples(&supply, RemainderSolveMethod::Greedy, 0, &Matrix::empty());
+            generate_supply_tokens(&supply, RemainderSolveMethod::Greedy, 0, &Matrix::empty());
 
         assert_eq!(11, actual_result.0.len());
         assert!(actual_result.1.is_empty());

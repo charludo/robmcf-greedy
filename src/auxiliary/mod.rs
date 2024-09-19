@@ -1,14 +1,14 @@
-mod b_tuple;
 mod from_network;
 mod network_state;
 mod preprocessing;
 mod scenario;
+mod supply_token;
 
 use dashmap::DashMap;
 use std::collections::HashMap;
 
 pub(super) use network_state::NetworkState;
-pub(super) use preprocessing::{generate_b_tuples, generate_intermediate_arc_sets};
+pub(super) use preprocessing::{generate_intermediate_arc_sets, generate_supply_tokens};
 pub(crate) use scenario::Scenario;
 
 use crate::{Result, SolverError};
@@ -52,7 +52,7 @@ impl AuxiliaryNetwork {
     pub(crate) fn exists_free_supply(&self) -> bool {
         self.scenarios
             .iter()
-            .map(|s| s.b_tuples_free.len())
+            .map(|s| s.tokens_free.len())
             .sum::<usize>()
             != 0
     }
@@ -60,7 +60,7 @@ impl AuxiliaryNetwork {
     pub(crate) fn exists_fixed_supply(&self) -> bool {
         self.scenarios
             .iter()
-            .map(|s| s.b_tuples_fixed.values().map(|v| v.len()).sum::<usize>())
+            .map(|s| s.tokens_fixed.values().map(|v| v.len()).sum::<usize>())
             .sum::<usize>()
             != 0
     }
