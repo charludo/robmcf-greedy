@@ -55,6 +55,7 @@ fn handle_free(scenario: &mut Scenario, fixed_arcs: &[usize]) -> Result<()> {
             b_tuple.origin,
             b_tuple.s,
             b_tuple.t,
+            true,
         )?;
 
         log::debug!(

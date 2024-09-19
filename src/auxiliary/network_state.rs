@@ -1,5 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
+use rand::Rng;
+
 use crate::{
     algorithms::{floyd_warshall, invert_predecessors},
     Matrix, Result, SolverError,
@@ -81,6 +83,7 @@ impl NetworkState {
         origin: usize,
         s: usize,
         dest: usize,
+        randomize: bool,
     ) -> Result<usize> {
         if *self.needs_refresh.get(origin, dest) {
             self.refresh(origin, dest)?;
@@ -116,13 +119,31 @@ impl NetworkState {
             return Ok(next_vertex_via_direct_path);
         }
 
-        if (cost_via_direct_path as i64)
-            < (cost_via_fixed_arc as i64)
-                - *self.relative_draws.get(&closest_fixed_arc).unwrap_or(&0)
-        {
-            Ok(next_vertex_via_direct_path)
+        let cost_via_direct_path = cost_via_direct_path as i64;
+        let cost_via_fixed_arc = (cost_via_fixed_arc as i64)
+            - *self.relative_draws.get(&closest_fixed_arc).unwrap_or(&0);
+
+        if !randomize {
+            if cost_via_direct_path < cost_via_fixed_arc {
+                Ok(next_vertex_via_direct_path)
+            } else {
+                Ok(next_vertex_via_fixed_arc)
+            }
         } else {
-            Ok(next_vertex_via_fixed_arc)
+            let mut rng = rand::thread_rng();
+            let sample: f64 = rng.gen();
+            let boundary: f64 = 1.
+                / (1.
+                    + ((cost_via_fixed_arc - cost_via_direct_path) as f64
+                        / cost_via_direct_path as f64)
+                        .exp());
+
+            log::warn!("Sample is {sample}, boundary is {boundary}: {cost_via_direct_path} vs {cost_via_fixed_arc}");
+            if sample > boundary {
+                Ok(next_vertex_via_direct_path)
+            } else {
+                Ok(next_vertex_via_fixed_arc)
+            }
         }
     }
 }

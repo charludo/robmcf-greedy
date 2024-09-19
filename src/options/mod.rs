@@ -17,6 +17,7 @@ pub struct Options {
     pub relative_draw_fn: RelativeDrawFunction,
     pub slack_fn: SlackFunction,
     pub remainder_solve_method: RemainderSolveMethod,
+    pub grasp: usize,
 }
 
 impl Default for Options {
@@ -27,6 +28,7 @@ impl Default for Options {
             relative_draw_fn: RelativeDrawFunction::Linear,
             slack_fn: SlackFunction::DifferenceToMax,
             remainder_solve_method: RemainderSolveMethod::None,
+            grasp: 0,
         }
     }
 }

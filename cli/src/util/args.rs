@@ -19,8 +19,12 @@ pub(crate) struct Args {
     pub(crate) trace: bool,
 
     /// Disable logging. Takes precedence over debug.
-    #[arg(long, short, long, global = true, display_order = 3)]
+    #[arg(long, short, global = true, display_order = 3)]
     pub(crate) quiet: bool,
+
+    /// Enable randomization of vertex selection. Set number of random greedy passes to run..
+    #[arg(long, short, default_value_t = 0, global = true, display_order = 3)]
+    pub(crate) grasp: usize,
 
     /// Function used to calculate the [c]ost of the overall solution
     #[arg(long, short='c', value_enum, default_value_t = CostFunction::Max, global = true, display_order = 11, help_heading="Solver Parameters")]
