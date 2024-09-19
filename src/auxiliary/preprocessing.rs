@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     options::{DeltaFunction, RemainderSolveMethod},
     Matrix,
@@ -9,11 +7,11 @@ use super::supply_token::SupplyToken;
 
 pub(crate) fn generate_supply_tokens(
     supply: &Matrix<usize>,
+    fixed_arcs: &[(usize, usize)],
     remainder_method: RemainderSolveMethod,
-    fixed_arc_count: usize,
     arc_sets: &Matrix<Matrix<bool>>,
-) -> (Vec<SupplyToken>, HashMap<usize, Vec<SupplyToken>>) {
-    let mut free: Vec<SupplyToken> = vec![];
+) -> Vec<SupplyToken> {
+    let mut tokens: Vec<SupplyToken> = vec![];
     supply
         .indices()
         .filter(|(s, t)| s != t && *supply.get(*s, *t) > 0)
@@ -24,9 +22,9 @@ pub(crate) fn generate_supply_tokens(
                 RemainderSolveMethod::Greedy => {}
                 _ => {
                     let arc_set = arc_sets.get(s, t);
-                    if !arc_set.as_columns()[arc_set.num_columns() - fixed_arc_count..]
+                    if !fixed_arcs
                         .iter()
-                        .any(|c| c.iter().any(|&e| e))
+                        .any(|(a_0, a_1)| *arc_set.get(*a_0, *a_1))
                     {
                         log::debug!("Skipped SupplyToken for ({s}, {t}) because it cannot be routed via any fixed arc.");
                         return;
@@ -35,19 +33,14 @@ pub(crate) fn generate_supply_tokens(
             }
 
             let token = SupplyToken { origin: s, s, t };
+            log::debug!("{}x {token}", *supply.get(s, t));
 
-            log::debug!(
-                "Generated {} tokens for ({s}, {t}):\n{token}",
-                *supply.get(s, t),
-            );
-
-            // we are working with single units of supply in order to prevent dead ends,
-            // and initially, all supply is free
+            // we are working with single units of supply in order to prevent dead ends
             let supply_at_s_t = vec![token; *supply.get(s, t)];
-            free.extend(supply_at_s_t);
+            tokens.extend(supply_at_s_t);
         });
 
-    (free, HashMap::new())
+    tokens
 }
 
 pub(crate) fn generate_intermediate_arc_sets(
@@ -132,12 +125,11 @@ mod tests {
 
     #[test]
     fn test_generate_supply_tokens() {
-        let supply: Matrix<usize> = Matrix::from_elements(&vec![0, 2, 1, 1, 0, 1, 0, 6, 0], 3, 3);
+        let supply: Matrix<usize> = Matrix::from_elements(&[0, 2, 1, 1, 0, 1, 0, 6, 0], 3, 3);
 
         let actual_result =
-            generate_supply_tokens(&supply, RemainderSolveMethod::Greedy, 0, &Matrix::empty());
+            generate_supply_tokens(&supply, &[], RemainderSolveMethod::Greedy, &Matrix::empty());
 
-        assert_eq!(11, actual_result.0.len());
-        assert!(actual_result.1.is_empty());
+        assert_eq!(11, actual_result.len());
     }
 }

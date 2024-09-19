@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use rayon::{iter::ParallelIterator, ThreadPoolBuilder};
 
 use crate::{
-    network::{AuxiliaryNetwork, Scenario, ScenarioSolution},
+    network::{AuxiliaryNetwork, ScenarioSolution},
     Options, Result,
 };
 
@@ -14,26 +12,43 @@ pub(crate) fn greedy(
     let pool = ThreadPoolBuilder::new().build().unwrap();
     let result: Result<()> = pool.install(|| {
         while network.exists_supply() {
-            let exists_free_supply = network.exists_free_supply();
-            let waiting_at_fixed_arcs = network.waiting();
-            let consistent_flows_to_move = network.max_consistent_flows();
-
+            let fixed_arc_loads = network.snapshot_fixed_arc_loads();
             let result: Result<Vec<_>> = network
                 .scenarios
                 .par_iter_mut()
                 .map(|mut entry| {
                     let (_, scenario) = entry.pair_mut();
-                    scenario
-                        .refresh_relative_draws(&waiting_at_fixed_arcs, &options.relative_draw_fn);
+                    scenario.refresh_relative_draws(&fixed_arc_loads, &options.relative_draw_fn);
+                    let mut i = 0;
+                    while i < scenario.supply_tokens.len() {
+                        let token = &mut scenario.supply_tokens[i];
+                        let next_vertex = scenario.network_state.get_next_vertex(
+                            scenario.id,
+                            token.origin,
+                            token.s,
+                            token.t,
+                        )?;
 
-                    handle_free(scenario, &network.fixed_arcs)?;
-                    handle_fixed(
-                        scenario,
-                        network,
-                        &consistent_flows_to_move,
-                        exists_free_supply,
-                    )?;
+                        log::debug!(
+                            "Moving supply in scenario {} with origin {} and destination {} via: ({}->{})",
+                            scenario.id,
+                            token.origin,
+                            token.t,
+                            token.s,
+                            next_vertex
+                        );
 
+                        scenario.network_state.use_arc(token.s, next_vertex);
+                        token.s = next_vertex;
+
+                        if token.s == token.t {
+                            scenario.supply_remaining.decrement(token.origin, token.t);
+                            scenario.supply_tokens.remove(i);
+                            continue;
+                        }
+
+                        i += 1;
+                    }
                     Ok(())
                 })
                 .collect();
@@ -46,106 +61,6 @@ pub(crate) fn greedy(
     get_solutions(network)
 }
 
-fn handle_free(scenario: &mut Scenario, fixed_arcs: &[usize]) -> Result<()> {
-    let mut i = 0;
-    while i < scenario.tokens_free.len() {
-        let tokens = &mut scenario.tokens_free[i];
-        let next_vertex = scenario.network_state.get_next_vertex(
-            scenario.id,
-            tokens.origin,
-            tokens.s,
-            tokens.t,
-        )?;
-
-        log::debug!(
-            "Moving supply in scenario {} with origin {} and destination {} via: ({}->{})",
-            scenario.id,
-            tokens.origin,
-            tokens.t,
-            tokens.s,
-            next_vertex
-        );
-
-        scenario.network_state.use_arc(tokens.s, next_vertex);
-        tokens.s = next_vertex;
-
-        if tokens.s == tokens.t {
-            scenario.supply_remaining.decrement(tokens.origin, tokens.t);
-            scenario.tokens_free.remove(i);
-            continue;
-        }
-
-        if fixed_arcs.contains(&next_vertex) {
-            scenario
-                .tokens_fixed
-                .entry(next_vertex)
-                .or_default()
-                .push(tokens.clone());
-            scenario.tokens_free.remove(i);
-        }
-
-        i += 1;
-    }
-
-    Ok(())
-}
-
-fn handle_fixed(
-    scenario: &mut Scenario,
-    network: &AuxiliaryNetwork,
-    consistent_flows_to_move: &HashMap<usize, usize>,
-    exists_free_supply: bool,
-) -> Result<()> {
-    for fixed_arc in &network.fixed_arcs {
-        let mut move_method = "conistently";
-        let mut consistent_flow_to_move = *consistent_flows_to_move.get(fixed_arc).unwrap_or(&0);
-        if consistent_flow_to_move == 0 && !exists_free_supply {
-            consistent_flow_to_move = scenario.waiting_at(*fixed_arc);
-            scenario.use_slack(consistent_flow_to_move)?;
-            move_method = "inconsistently";
-        };
-
-        if consistent_flow_to_move == 0 {
-            continue;
-        }
-
-        log::info!(
-            "Moving {} units of supply {} along the fixed arc {} in scenario {}",
-            consistent_flow_to_move,
-            move_method,
-            network.fixed_arc_repr(*fixed_arc),
-            scenario.id
-        );
-
-        let mut consistently_moved_supply = scenario
-            .tokens_fixed
-            .entry(*fixed_arc)
-            .or_default()
-            .drain(0..consistent_flow_to_move)
-            .collect::<Vec<_>>();
-
-        let mut i = 0;
-        while i < consistently_moved_supply.len() {
-            let tokens = &mut consistently_moved_supply[i];
-            let fixed_arc_terminal = network.get_fixed_arc_terminal(*fixed_arc)?;
-            scenario
-                .network_state
-                .use_arc(*fixed_arc, fixed_arc_terminal);
-            tokens.s = fixed_arc_terminal;
-            if tokens.s == tokens.t {
-                scenario.supply_remaining.decrement(tokens.origin, tokens.t);
-                consistently_moved_supply.remove(i);
-                continue;
-            }
-
-            i += 1;
-        }
-        scenario.tokens_free.extend(consistently_moved_supply)
-    }
-
-    Ok(())
-}
-
 fn get_solutions(network: &AuxiliaryNetwork) -> Result<Vec<ScenarioSolution>> {
     network
         .scenarios
@@ -155,15 +70,8 @@ fn get_solutions(network: &AuxiliaryNetwork) -> Result<Vec<ScenarioSolution>> {
                 id: scenario.id,
                 slack_total: scenario.slack,
                 slack_remaining: scenario.slack - scenario.slack_used,
-                supply_remaining: ScenarioSolution::supply_from_auxiliary(
-                    &scenario.supply_remaining,
-                    network.fixed_arcs.len(),
-                ),
-                arc_loads: ScenarioSolution::arc_loads_from_auxiliary(
-                    &scenario.network_state.arc_loads,
-                    &network.fixed_arcs,
-                    &network.fixed_arcs_memory,
-                )?,
+                supply_remaining: scenario.supply_remaining.clone(),
+                arc_loads: scenario.network_state.arc_loads.clone(),
             })
         })
         .collect::<Result<Vec<_>>>()

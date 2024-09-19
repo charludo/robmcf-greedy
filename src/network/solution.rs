@@ -1,8 +1,8 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::cmp::Ordering;
 
 use colored::{Color, ColoredString, Colorize};
 
-use crate::{options::CostFunction, Matrix, Result, SolverError};
+use crate::{options::CostFunction, Matrix};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ScenarioSolution {
@@ -36,36 +36,6 @@ impl ScenarioSolution {
 
     pub(crate) fn slack_used(&self) -> usize {
         self.slack_total - self.slack_remaining
-    }
-
-    pub(crate) fn supply_from_auxiliary(
-        supply: &Matrix<usize>,
-        num_fixed_arcs: usize,
-    ) -> Matrix<usize> {
-        let mut supply = supply.clone();
-        supply.shrink(num_fixed_arcs);
-        supply
-    }
-
-    pub(crate) fn arc_loads_from_auxiliary(
-        arc_loads: &Matrix<usize>,
-        fixed_arcs: &[usize],
-        fixed_arcs_memory: &HashMap<usize, (usize, usize)>,
-    ) -> Result<Matrix<usize>> {
-        let mut arc_loads = arc_loads.clone();
-        for fixed_arc in fixed_arcs.iter() {
-            let original_arc = match fixed_arcs_memory.get(fixed_arc) {
-                Some(arc) => arc,
-                None => return Err(SolverError::FixedArcMemoryCorruptError),
-            };
-            arc_loads.set(
-                original_arc.0,
-                original_arc.1,
-                *arc_loads.get(*fixed_arc, original_arc.1),
-            );
-        }
-        arc_loads.shrink(fixed_arcs.len());
-        Ok(arc_loads)
     }
 }
 

@@ -8,7 +8,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub(crate) struct NetworkState {
     pub(crate) intermediate_arc_sets: Matrix<Matrix<bool>>,
-    pub(crate) fixed_arcs: Matrix<Vec<usize>>,
+    pub(crate) fixed_arcs: Vec<(usize, usize)>,
 
     pub(crate) distances: Matrix<Matrix<usize>>,
     pub(crate) successors: Matrix<Matrix<usize>>,
@@ -18,13 +18,13 @@ pub(crate) struct NetworkState {
 
     pub(crate) arc_loads: Matrix<usize>,
 
-    pub(crate) relative_draws: HashMap<usize, i64>,
+    pub(crate) relative_draws: HashMap<(usize, usize), i64>,
     pub(crate) needs_refresh: Matrix<bool>,
 }
 
 impl NetworkState {
     fn refresh(&mut self, origin: usize, dest: usize) -> Result<()> {
-        log::info!("Performing scheduled refresh for (s, t) pair ({origin}, {dest}).");
+        log::debug!("Performing scheduled refresh for (s, t) pair ({origin}, {dest}).");
         let (distance_map, predecessor_map) = floyd_warshall(
             &self
                 .capacities
@@ -60,17 +60,20 @@ impl NetworkState {
         }
     }
 
-    fn get_closest_fixed_arc(&self, origin: usize, s: usize, dest: usize) -> Option<usize> {
-        // This assumes that the cost of the fixed arcs is non-zero, and the cost TO the fixed
-        // vertex is zero instead.
+    fn get_closest_fixed_arc(
+        &self,
+        origin: usize,
+        s: usize,
+        dest: usize,
+    ) -> Option<(usize, usize)> {
         let distances = self.distances.get(origin, dest);
         self.fixed_arcs
-            .get(origin, dest)
             .iter()
-            .min_by_key(|fixed_arc| {
-                ((*distances.get(s, **fixed_arc) as i64)
-                    + (*distances.get(**fixed_arc, dest) as i64))
-                    .saturating_sub(*self.relative_draws.get(fixed_arc).unwrap_or(&0))
+            .min_by_key(|(a_0, a_1)| {
+                ((*distances.get(s, *a_0) as i64)
+                    + (*self.costs.get(*a_0, *a_1) as i64)
+                    + (*distances.get(*a_1, dest) as i64))
+                    .saturating_sub(*self.relative_draws.get(&(*a_0, *a_1)).unwrap_or(&0))
             })
             .copied()
     }
@@ -97,7 +100,13 @@ impl NetworkState {
             Some(fixed_arc) => fixed_arc,
             None => return Ok(next_vertex_via_direct_path),
         };
-        let next_vertex_via_fixed_arc = *successors.get(s, closest_fixed_arc);
+
+        // dist(v, v) is always 0 thanks to Floyd-Warshall!
+        let next_vertex_via_fixed_arc = if s == closest_fixed_arc.0 {
+            *successors.get(s, closest_fixed_arc.1)
+        } else {
+            *successors.get(s, closest_fixed_arc.0)
+        };
         if next_vertex_via_fixed_arc == usize::MAX {
             return Ok(next_vertex_via_direct_path);
         }
@@ -110,8 +119,9 @@ impl NetworkState {
         }
 
         let cost_via_fixed_arc = distances
-            .get(s, closest_fixed_arc)
-            .saturating_add(*distances.get(closest_fixed_arc, dest));
+            .get(s, closest_fixed_arc.0)
+            .saturating_add(*self.costs.get(closest_fixed_arc.0, closest_fixed_arc.1))
+            .saturating_add(*distances.get(closest_fixed_arc.1, dest));
         if cost_via_fixed_arc == usize::MAX {
             return Ok(next_vertex_via_direct_path);
         }

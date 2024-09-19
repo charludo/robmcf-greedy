@@ -27,11 +27,11 @@ pub(crate) struct Args {
     pub(crate) costs: CostFunction,
 
     /// [D]istance function used in determining intermediate arc sets
-    #[arg(long, short='d', value_enum, default_value_t = DeltaFunction::LinearMedium, global = true, display_order = 12, help_heading="Solver Parameters")]
+    #[arg(long, short='d', value_enum, default_value_t = DeltaFunction::LogarithmicMedium, global = true, display_order = 12, help_heading="Solver Parameters")]
     pub(crate) delta: DeltaFunction,
 
     /// Function used to calculate the [r]elative draw of supply towards fixerd arcs
-    #[arg(long, short='r', value_enum, default_value_t = RelativeDrawFunction::Linear, global = true, display_order = 13, help_heading="Solver Parameters")]
+    #[arg(long, short='r', value_enum, default_value_t = RelativeDrawFunction::PeerPressure, global = true, display_order = 13, help_heading="Solver Parameters")]
     pub(crate) draw: RelativeDrawFunction,
 
     /// Function used in determining the total [s]lack available to scenarios

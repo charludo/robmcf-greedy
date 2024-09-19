@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 pub(super) use crate::auxiliary::AuxiliaryNetwork;
-pub(super) use crate::auxiliary::Scenario;
 use crate::{options::RemainderSolveMethod, Matrix, Options};
 use crate::{Result, SolverError};
 pub(super) use solution::{ScenarioSolution, Solution};
