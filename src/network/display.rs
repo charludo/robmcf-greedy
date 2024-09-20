@@ -80,6 +80,13 @@ impl Display for Network {
             ));
             string_repr.push("".to_string());
         }
+        if let (None, Some(solutions)) = (&self.baseline, &self.solutions) {
+            string_repr.push(format!(
+                "The consistent flow values are:\n{}",
+                solutions.consistent_flows_colorized(&self.fixed_arcs, Color::Blue)
+            ));
+            string_repr.push("".to_string());
+        }
         string_repr.push(match &self.solutions {
             Some(_) => format!(
                 "{}\n{}",

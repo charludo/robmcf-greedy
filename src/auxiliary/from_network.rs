@@ -62,12 +62,14 @@ impl AuxiliaryNetwork {
                     relative_draws: HashMap::new(),
                 };
 
-                let supply_tokens = generate_supply_tokens(
+                let mut supply_tokens = generate_supply_tokens(
                     balance,
                     &network.fixed_arcs,
                     network.options.remainder_solve_method.clone(),
                     &arc_sets,
                 );
+                supply_tokens.sort_by_key(|token| distance_map.get(token.s, token.t));
+
                 let scenario = Scenario {
                     id: i,
                     supply_tokens,
