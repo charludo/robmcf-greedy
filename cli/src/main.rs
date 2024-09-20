@@ -65,7 +65,7 @@ fn main() {
         }
     };
 
-    let (output, skip_lower_bound) = match &args.command {
+    let (output, lower_bound) = match &args.command {
         Commands::Benchmark { iterations, .. } => {
             attempt!(network.validate_network());
             run_benchmark(&network, *iterations);
@@ -79,9 +79,9 @@ fn main() {
         }
         Commands::Random {
             output,
-            skip_lower_bound,
+            lower_bound,
             ..
-        } => (output, skip_lower_bound),
+        } => (output, lower_bound),
         Commands::Solve {
             randomize_capacities,
             randomize_costs,
@@ -89,7 +89,7 @@ fn main() {
             randomize_fixed_arcs,
             random,
             output,
-            skip_lower_bound,
+            lower_bound,
             ..
         } => {
             if *randomize_capacities {
@@ -112,7 +112,7 @@ fn main() {
             if let Some(file) = output {
                 attempt!(network.serialize(file));
             }
-            (output, skip_lower_bound)
+            (output, lower_bound)
         }
     };
 
@@ -120,7 +120,7 @@ fn main() {
     if let Some(output) = output {
         attempt!(network.serialize(output));
     }
-    if !skip_lower_bound {
+    if *lower_bound {
         attempt!(network.lower_bound());
     }
     attempt!(network.preprocess());

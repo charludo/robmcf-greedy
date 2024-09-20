@@ -68,7 +68,7 @@ impl AuxiliaryNetwork {
                     network.options.remainder_solve_method.clone(),
                     &arc_sets,
                 );
-                supply_tokens.sort_by_key(|token| distance_map.get(token.s, token.t));
+                supply_tokens.sort_by_key(|token| *distance_map.get(token.s, token.t));
 
                 let scenario = Scenario {
                     id: i,

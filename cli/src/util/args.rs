@@ -151,9 +151,9 @@ pub(crate) enum Commands {
         #[arg(short, long, display_order = 0)]
         output: Option<String>,
 
-        /// Skip calculation of [l]ower bound for network costs. Required if Gurobi is not available.
+        /// Calculate a [l]ower bound for network costs. Requires Gurobi.
         #[arg(long, short = 'l', global = true, display_order = 1)]
-        skip_lower_bound: bool,
+        lower_bound: bool,
 
         /// Enable capacity randomization
         #[arg(long, display_order = 100, help_heading = "Random Capacities")]
@@ -194,9 +194,9 @@ pub(crate) enum Commands {
         #[arg(short, long, display_order = 0)]
         output: Option<String>,
 
-        /// Skip calculation of [l]ower bound for network costs. Required if Gurobi is not available.
+        /// Calculate a [l]ower bound for network costs. Requires Gurobi.
         #[arg(long, short = 'l', global = true, display_order = 1)]
-        skip_lower_bound: bool,
+        lower_bound: bool,
 
         /// Number of vertices
         vertices: usize,
