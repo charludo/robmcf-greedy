@@ -14,11 +14,11 @@ pub(crate) struct Args {
     #[arg(long, short = 'v', global = true, display_order = 1)]
     pub(crate) debug: bool,
 
-    /// Enable trace logging
+    /// Enable [t]race logging
     #[arg(long, short, global = true, display_order = 2)]
     pub(crate) trace: bool,
 
-    /// Disable logging. Takes precedence over debug.
+    /// Disable logging, [q]uieting output. Takes precedence over debug.
     #[arg(long, short, long, global = true, display_order = 3)]
     pub(crate) quiet: bool,
 
@@ -147,7 +147,7 @@ pub(crate) enum Commands {
         /// Path to a file containing a network to be used as input.
         file: String,
 
-        /// Path to output file to save the network in
+        /// Path to [o]utput file to save the network in
         #[arg(short, long, display_order = 0)]
         output: Option<String>,
 
@@ -184,13 +184,13 @@ pub(crate) enum Commands {
         /// Path to a file containing a network to be used as input.
         file: String,
 
-        /// Number of iterations over which to average
+        /// Number of [i]terations over which to average
         #[arg(short, long, display_order = 0)]
         iterations: usize,
     },
     /// Create a completely random network instead of using an input file.
     Random {
-        /// Path to output file to save the network in
+        /// Path to [o]utput file to save the network in
         #[arg(short, long, display_order = 0)]
         output: Option<String>,
 
