@@ -70,10 +70,15 @@ impl NetworkState {
         self.fixed_arcs
             .iter()
             .min_by_key(|(a_0, a_1)| {
-                ((*distances.get(s, *a_0) as i64)
-                    + (*self.costs.get(*a_0, *a_1) as i64)
-                    + (*distances.get(*a_1, dest) as i64))
-                    .saturating_sub(*self.relative_draws.get(&(*a_0, *a_1)).unwrap_or(&0))
+                let dist = (*distances.get(s, *a_0))
+                    .saturating_add(*self.costs.get(*a_0, *a_1))
+                    .saturating_add(*distances.get(*a_1, dest));
+                if dist == usize::MAX {
+                    dist as i64
+                } else {
+                    (dist as i64)
+                        .saturating_sub(*self.relative_draws.get(&(*a_0, *a_1)).unwrap_or(&0))
+                }
             })
             .copied()
     }

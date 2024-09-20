@@ -57,7 +57,7 @@ pub(crate) fn invert_predecessors(prev: &Matrix<Option<usize>>) -> Result<Matrix
         }
     }
 
-    log::trace!("Predecessor map has been inverted into the following succcessor map:\n{succ}",);
+    log::trace!("Predecessor map has been inverted into the following successor map:\n{succ}",);
     Ok(succ)
 }
 
