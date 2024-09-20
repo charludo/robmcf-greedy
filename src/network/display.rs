@@ -13,7 +13,7 @@ impl Network {
             "The following arc loads constitute the solution:\n{}\nThe network cost is {}.",
             solutions.iter()
                 .map(|solution| format!(
-                    "Scenario {}, with cost {} and {} slack used (target: < {}) in delivery of {}/{} supply units:\n{}",
+                    "Scenario {}, with cost {} and {} slack used (target: ≤ {}) in delivery of {}/{} supply units:\n{}",
                     solution.id,
                     solution.cost(&self.costs),
                     solution.slack,

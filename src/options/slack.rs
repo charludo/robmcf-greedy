@@ -6,6 +6,7 @@ use clap::ValueEnum;
 #[clap(rename_all = "kebab-case")]
 #[allow(non_camel_case_types)]
 pub enum SlackFunction {
+    None,
     Const_10,
     Const_100,
     Const_1000,
@@ -23,6 +24,7 @@ pub enum SlackFunction {
 impl SlackFunction {
     pub fn apply(&self, balances: &[Matrix<usize>]) -> Vec<usize> {
         match self {
+            SlackFunction::None => vec![0; balances.len()],
             SlackFunction::Const_10 => vec![10; balances.len()],
             SlackFunction::Const_100 => vec![100; balances.len()],
             SlackFunction::Const_1000 => vec![1000; balances.len()],

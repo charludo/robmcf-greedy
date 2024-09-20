@@ -10,6 +10,8 @@ pub enum DeltaFunction {
     LogarithmicLow,
     LogarithmicMedium,
     LogarithmicHigh,
+
+    Unlimited,
 }
 
 impl DeltaFunction {
@@ -22,6 +24,8 @@ impl DeltaFunction {
             DeltaFunction::LogarithmicLow => Self::logarithmic(x, 5.),
             DeltaFunction::LogarithmicMedium => Self::logarithmic(x, 10.),
             DeltaFunction::LogarithmicHigh => Self::logarithmic(x, 20.),
+
+            DeltaFunction::Unlimited => usize::MAX,
         }
     }
 
