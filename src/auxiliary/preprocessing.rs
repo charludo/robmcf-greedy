@@ -74,7 +74,7 @@ pub(crate) fn generate_intermediate_arc_sets(
             }
         }
 
-        log::debug!(
+        log::trace!(
             "Generated the following intermediate arc set for ({}, {}):\n{}",
             s,
             t,
