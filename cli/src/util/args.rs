@@ -155,6 +155,10 @@ pub(crate) enum Commands {
         #[arg(long, short = 'l', global = true, display_order = 1)]
         lower_bound: bool,
 
+        /// Add [p]enalty arcs between vertices with non-zero supply/demand relationship
+        #[arg(long, short = 'p', global = true, display_order = 1)]
+        penalty_arcs: bool,
+
         /// Enable capacity randomization
         #[arg(long, display_order = 100, help_heading = "Random Capacities")]
         randomize_capacities: bool,
@@ -197,6 +201,10 @@ pub(crate) enum Commands {
         /// Calculate a [l]ower bound for network costs. Requires Gurobi.
         #[arg(long, short = 'l', global = true, display_order = 1)]
         lower_bound: bool,
+
+        /// Add [p]enalty arcs between vertices with non-zero supply/demand relationship
+        #[arg(long, short = 'p', global = true, display_order = 1)]
+        penalty_arcs: bool,
 
         /// Number of vertices
         vertices: usize,

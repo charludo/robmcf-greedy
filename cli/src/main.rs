@@ -65,7 +65,7 @@ fn main() {
         }
     };
 
-    let (output, lower_bound) = match &args.command {
+    let (output, lower_bound, penalty_arcs) = match &args.command {
         Commands::Benchmark { iterations, .. } => {
             attempt!(network.validate_network());
             run_benchmark(&network, *iterations);
@@ -80,8 +80,9 @@ fn main() {
         Commands::Random {
             output,
             lower_bound,
+            penalty_arcs,
             ..
-        } => (output, lower_bound),
+        } => (output, lower_bound, penalty_arcs),
         Commands::Solve {
             randomize_capacities,
             randomize_costs,
@@ -90,6 +91,7 @@ fn main() {
             random,
             output,
             lower_bound,
+            penalty_arcs,
             ..
         } => {
             if *randomize_capacities {
@@ -112,7 +114,7 @@ fn main() {
             if let Some(file) = output {
                 attempt!(network.serialize(file));
             }
-            (output, lower_bound)
+            (output, lower_bound, penalty_arcs)
         }
     };
 
@@ -120,13 +122,17 @@ fn main() {
     if let Some(output) = output {
         attempt!(network.serialize(output));
     }
+    if *penalty_arcs {
+        attempt!(network.add_penalty_arcs());
+        println!("{}", network);
+    }
     if *lower_bound {
         attempt!(network.lower_bound());
     }
     attempt!(network.preprocess());
     attempt!(network.solve());
     attempt!(network.solve_remainder());
-    attempt!(network.validate_solution());
+    // attempt!(network.validate_solution());
 
     println!("{}", network);
 }

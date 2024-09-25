@@ -150,6 +150,22 @@ impl Network {
         }
     }
 
+    pub fn add_penalty_arcs(&mut self) -> Result<()> {
+        let indices = self
+            .capacities
+            .indices()
+            .filter(|&(s, t)| *self.capacities.get(s, t) == 0)
+            .collect::<Vec<_>>();
+        for (s, t) in indices {
+            if self.balances.iter().any(|b| *b.get(s, t) > 0) {
+                self.capacities.set(s, t, usize::MAX);
+                self.costs.set(s, t, usize::MAX / 2);
+            }
+        }
+        log::info!("Added penalty arcs.");
+        Ok(())
+    }
+
     pub fn solve(&mut self) -> Result<()> {
         log::info!("Attempting to find a feasible robust flow...");
         let auxiliary_network = match &mut self.auxiliary_network {

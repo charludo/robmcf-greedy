@@ -31,8 +31,11 @@ fn main() {
     //     5,        // num_fixed_arcs,
     // )
     // .expect("An error occurred while loading the network.");
-    let n = Network::from_file(&Options::default(), "test.json")
-        .expect("An error occurred while loading the network.");
+    let n = Network::from_file(
+        &Options::default(),
+        "../masterarbeit-scraper/output/network_aachen.json",
+    )
+    .expect("An error occurred while loading the network.");
     let network = NetworkWrapper {
         num_vertices: n.vertices.len(),
         n,
