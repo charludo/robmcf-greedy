@@ -25,7 +25,7 @@ macro_rules! attempt {
     ($e:expr) => {
         if let Err(err) = $e {
             log::error!("{}", err);
-            return;
+            std::process::exit(1);
         }
     };
 }
