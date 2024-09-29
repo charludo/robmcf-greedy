@@ -136,5 +136,5 @@ fn main() {
     attempt!(network.solve_remainder());
     attempt!(network.validate_solution());
 
-    // println!("{}", network);
+    println!("{}", network);
 }

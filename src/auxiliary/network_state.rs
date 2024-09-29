@@ -21,7 +21,7 @@ pub(crate) struct NetworkState {
 }
 
 impl NetworkState {
-    fn refresh(&mut self, token: &SupplyToken) -> Result<(Matrix<usize>, Matrix<usize>)> {
+    fn refresh_token(&mut self, token: &mut SupplyToken) -> Result<()> {
         log::debug!(
             "({}): Performing scheduled refresh for token {}.",
             self.scenario_id,
@@ -33,7 +33,9 @@ impl NetworkState {
         );
         let successor_map = invert_predecessors(&predecessor_map)?;
 
-        Ok((distance_map, successor_map))
+        token.distances = distance_map;
+        token.successors = successor_map;
+        Ok(())
     }
 
     pub(crate) fn use_arc(&mut self, token: &mut SupplyToken, next_vertex: usize) {
@@ -43,7 +45,7 @@ impl NetworkState {
         let remaining_capacity = self.capacities.decrement(token.s, next_vertex);
         if remaining_capacity == 0 {
             log::info!(
-                "({}): Arc ({}->{}) has reached its capacity. Tokens will be refreshed lazily.",
+                "({}): Arc ({}->{}) has reached its capacity.",
                 self.scenario_id,
                 token.s,
                 next_vertex,
@@ -90,9 +92,7 @@ impl NetworkState {
     }
 
     pub(crate) fn get_next_vertex(&mut self, token: &mut SupplyToken) -> Result<usize> {
-        // if token.needs_refresh(&self.capacities) {
-        (token.distances, token.successors) = self.refresh(token)?;
-        // }
+        self.refresh_token(token)?;
 
         let next_vertex_via_direct_path = *token.successors.get(token.s, token.t);
         if next_vertex_via_direct_path == usize::MAX {

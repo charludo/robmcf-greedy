@@ -11,14 +11,6 @@ pub(crate) struct SupplyToken {
     pub(crate) successors: Matrix<usize>,
 }
 
-impl SupplyToken {
-    pub(crate) fn needs_refresh(&self, capacities: &Matrix<usize>) -> bool {
-        self.intermediate_arc_set
-            .indices()
-            .any(|(i, j)| *self.intermediate_arc_set.get(i, j) && *capacities.get(i, j) == 0)
-    }
-}
-
 impl std::fmt::Display for SupplyToken {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
