@@ -7,6 +7,12 @@ pub struct Vertex {
     pub name: String,
     pub x: f32,
     pub y: f32,
+    #[serde(default = "default_true")]
+    pub is_station: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Display for Vertex {

@@ -40,8 +40,10 @@ fn main() {
         } => Ok(Network::from_random(
             &options,
             *vertices,
+            random.station_density,
             random.arc_density,
-            random.supply_density,
+            random.supply_density_min,
+            random.supply_density_max,
             random.scenarios,
             random.umin,
             random.umax,
@@ -103,7 +105,8 @@ fn main() {
             if *randomize_scenarios {
                 network.randomize_scenarios(
                     random.scenarios,
-                    random.supply_density,
+                    random.supply_density_min,
+                    random.supply_density_max,
                     random.bmin,
                     random.bmax,
                 );

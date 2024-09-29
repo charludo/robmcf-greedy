@@ -45,6 +45,15 @@ pub(crate) struct Args {
 
 #[derive(Parser, Debug)]
 pub(crate) struct RandomizationArgs {
+    /// The fraction of vertices that are "stations" and can have demand/supply
+    #[arg(
+        long,
+        default_value_t = 1.0,
+        display_order = 100,
+        help_heading = "Random Vertices"
+    )]
+    pub(crate) station_density: f64,
+
     /// The fraction of arcs with a capacity greater than zero
     #[arg(
         long,
@@ -99,20 +108,29 @@ pub(crate) struct RandomizationArgs {
     )]
     pub(crate) scenarios: usize,
 
-    /// Fraction of vertices each vertex has supply greater than zero for
+    /// Minimum fraction of vertices each vertex has supply greater than zero for
     #[arg(
         long,
-        default_value_t = 0.3,
+        default_value_t = 0.1,
         display_order = 302,
         help_heading = "Random Scenarios"
     )]
-    pub(crate) supply_density: f64,
+    pub(crate) supply_density_min: f64,
+
+    /// Maximum fraction of vertices each vertex has supply greater than zero for
+    #[arg(
+        long,
+        default_value_t = 0.5,
+        display_order = 303,
+        help_heading = "Random Scenarios"
+    )]
+    pub(crate) supply_density_max: f64,
 
     /// Minimum supply value
     #[arg(
         long,
         default_value_t = 2,
-        display_order = 303,
+        display_order = 304,
         help_heading = "Random Scenarios"
     )]
     pub(crate) bmin: usize,
@@ -121,7 +139,7 @@ pub(crate) struct RandomizationArgs {
     #[arg(
         long,
         default_value_t = 8,
-        display_order = 304,
+        display_order = 305,
         help_heading = "Random Scenarios"
     )]
     pub(crate) bmax: usize,

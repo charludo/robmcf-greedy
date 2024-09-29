@@ -176,6 +176,7 @@ pub fn create_vertex(
         name: format!("v{}", network.num_vertices),
         x: world_coords.0.x,
         y: world_coords.0.y,
+        is_station: true,
     };
     Vertex::spawn(network.num_vertices, &vertex, &mut commands, &app_settings);
     network.num_vertices += 1;

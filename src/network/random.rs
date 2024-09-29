@@ -9,8 +9,10 @@ impl Network {
     pub fn from_random(
         options: &Options,
         num_vertices: usize,
+        station_density: f64,
         arc_density: f64,
-        supply_density: f64,
+        supply_density_min: f64,
+        supply_density_max: f64,
         num_scenarios: usize,
         umin: usize,
         umax: usize,
@@ -33,16 +35,22 @@ impl Network {
             options: options.clone(),
         };
 
-        network.randomize_vertices(num_vertices);
+        network.randomize_vertices(num_vertices, station_density);
         network.randomize_capacities(arc_density, umin, umax);
         network.randomize_costs(cmin, cmax);
-        network.randomize_scenarios(num_scenarios, supply_density, bmin, bmax);
+        network.randomize_scenarios(
+            num_scenarios,
+            supply_density_min,
+            supply_density_max,
+            bmin,
+            bmax,
+        );
         network.randomize_fixed_arcs(num_fixed_arcs, consecutive_fixed_arcs);
 
         network
     }
 
-    pub fn randomize_vertices(&mut self, num_vertices: usize) {
+    pub fn randomize_vertices(&mut self, num_vertices: usize, station_density: f64) {
         log::debug!("Randomizing vertices: num_vertices={num_vertices}");
         let mut rng = rand::thread_rng();
         self.vertices = (1..=num_vertices)
@@ -50,6 +58,7 @@ impl Network {
                 name: format!("v{}", i),
                 x: rng.gen_range((-100 * num_vertices as i64)..(100 * num_vertices as i64)) as f32,
                 y: rng.gen_range((-100 * num_vertices as i64)..(100 * num_vertices as i64)) as f32,
+                is_station: rng.gen_bool(station_density),
             })
             .collect();
     }
@@ -68,13 +77,38 @@ impl Network {
     pub fn randomize_scenarios(
         &mut self,
         num_scenarios: usize,
-        supply_density: f64,
+        supply_density_min: f64,
+        supply_density_max: f64,
         bmin: usize,
         bmax: usize,
     ) {
-        log::debug!("Randomizing scenarios: num_scenarios={num_scenarios}, supply_density={supply_density}, bmin={bmin}, bmax={bmax}.");
+        log::debug!("Randomizing scenarios: num_scenarios={num_scenarios}, supply_density_min={supply_density_min}, supply_density_max={supply_density_max}, bmin={bmin}, bmax={bmax}.");
+        let stations: Vec<usize> = self
+            .vertices
+            .iter()
+            .enumerate()
+            .filter_map(|(i, v)| if v.is_station { Some(i) } else { None })
+            .collect();
+
+        let station_pairs: Vec<(usize, usize)> = stations
+            .iter()
+            .flat_map(|&i| stations.iter().map(move |&j| (i, j)))
+            .filter(|(i, j)| *i != *j)
+            .collect();
+
         self.balances = (0..num_scenarios)
-            .map(|_| self.generate_random_matrix(self.vertices.len(), supply_density, (bmin, bmax)))
+            .map(|_| {
+                let mut rng = rand::thread_rng();
+                let supply_density = rng.gen_range(supply_density_min..=supply_density_max);
+
+                let mut scenario = Matrix::filled_with(0, self.vertices.len(), self.vertices.len());
+                for (i, j) in &station_pairs {
+                    if rng.gen_bool(supply_density) {
+                        scenario.set(*i, *j, rng.gen_range(bmin..=bmax));
+                    }
+                }
+                scenario
+            })
             .collect();
     }
 
