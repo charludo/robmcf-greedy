@@ -1,6 +1,7 @@
 use crate::{
+    algorithms::{floyd_warshall, invert_predecessors},
     options::{DeltaFunction, RemainderSolveMethod},
-    Matrix,
+    Matrix, Result,
 };
 
 use super::supply_token::SupplyToken;
@@ -10,39 +11,48 @@ pub(crate) fn generate_supply_tokens(
     fixed_arcs: &[(usize, usize)],
     remainder_method: RemainderSolveMethod,
     arc_sets: &Matrix<Matrix<bool>>,
-    dist: &Matrix<usize>,
-    succ: &Matrix<usize>,
-) -> Vec<SupplyToken> {
+    capacities: &Matrix<usize>,
+    costs: &Matrix<usize>,
+) -> Result<Vec<SupplyToken>> {
     let mut tokens: Vec<SupplyToken> = vec![];
-    supply
+    for (s, t) in supply
         .indices()
         .filter(|(s, t)| s != t && *supply.get(*s, *t) > 0)
-        .for_each(|(s, t)| {
-            // Unless the remainder method is greedy, skip (s, t) pairs which cannot be routed via
-            // at least one fixed arc
-            match remainder_method {
-                RemainderSolveMethod::Greedy => {}
-                _ => {
-                    let arc_set = arc_sets.get(s, t);
-                    if !fixed_arcs
-                        .iter()
-                        .any(|(a_0, a_1)| *arc_set.get(*a_0, *a_1))
-                    {
-                        log::debug!("Skipped SupplyToken for ({s}, {t}) because it cannot be routed via any fixed arc.");
-                        return;
-                    }
+    {
+        // Unless the remainder method is greedy, skip (s, t) pairs which cannot be routed via
+        // at least one fixed arc
+        match remainder_method {
+            RemainderSolveMethod::Greedy => {}
+            _ => {
+                let arc_set = arc_sets.get(s, t);
+                if !fixed_arcs.iter().any(|(a_0, a_1)| *arc_set.get(*a_0, *a_1)) {
+                    log::debug!("Skipped SupplyToken for ({s}, {t}) because it cannot be routed via any fixed arc.");
+                    continue;
                 }
             }
+        }
 
-            let token = SupplyToken { origin: s, s, t , intermediate_arc_set: arc_sets.get(s, t).to_owned(), distances: dist.to_owned(), successors: succ.to_owned()};
-            log::debug!("{}x {token}", *supply.get(s, t));
+        let arc_set = arc_sets.get(s, t);
+        let (distance_map, predecessor_map) =
+            floyd_warshall(&capacities.apply_mask(arc_set, 0), costs);
+        let successor_map = invert_predecessors(&predecessor_map)?;
 
-            // we are working with single units of supply in order to prevent dead ends
-            let supply_at_s_t = vec![token; *supply.get(s, t)];
-            tokens.extend(supply_at_s_t);
-        });
+        let token = SupplyToken {
+            origin: s,
+            s,
+            t,
+            intermediate_arc_set: arc_set.clone(),
+            distances: distance_map,
+            successors: successor_map,
+        };
+        log::debug!("{}x {token}", *supply.get(s, t));
 
-    tokens
+        // we are working with single units of supply in order to prevent dead ends
+        let supply_at_s_t = vec![token; *supply.get(s, t)];
+        tokens.extend(supply_at_s_t);
+    }
+
+    Ok(tokens)
 }
 
 pub(crate) fn generate_intermediate_arc_sets(
@@ -138,6 +148,6 @@ mod tests {
             &Matrix::filled_with(0, 3, 3),
         );
 
-        assert_eq!(11, actual_result.len());
+        assert_eq!(11, actual_result.unwrap().len());
     }
 }

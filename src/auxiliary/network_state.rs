@@ -38,6 +38,7 @@ impl NetworkState {
 
     pub(crate) fn use_arc(&mut self, token: &mut SupplyToken, next_vertex: usize) {
         token.intermediate_arc_set.set(token.s, next_vertex, false);
+
         let _ = self.arc_loads.increment(token.s, next_vertex);
         let remaining_capacity = self.capacities.decrement(token.s, next_vertex);
         if remaining_capacity == 0 {
@@ -50,45 +51,56 @@ impl NetworkState {
         }
     }
 
-    fn get_closest_fixed_arc(&self, token: &SupplyToken) -> Option<(usize, usize)> {
-        self.fixed_arcs
-            .iter()
-            .min_by_key(|(a_0, a_1)| {
-                let dist = (*token.distances.get(token.s, *a_0))
-                    .saturating_add(*self.costs.get(*a_0, *a_1))
-                    .saturating_add(*token.distances.get(*a_1, token.t));
-                if dist == usize::MAX {
-                    dist as i64
-                } else {
-                    (dist as i64)
-                        .saturating_sub(*self.relative_draws.get(&(*a_0, *a_1)).unwrap_or(&0))
-                }
-            })
-            .copied()
+    fn get_closest_fixed_arc(&self, token: &SupplyToken) -> (usize, i64) {
+        let mut vertex = usize::MAX;
+        let mut cost = i64::MAX;
+
+        for fixed_arc in &self.fixed_arcs {
+            if !token.intermediate_arc_set.get(fixed_arc.0, fixed_arc.1) {
+                continue;
+            }
+
+            let cost_via_fixed_arc = token
+                .distances
+                .get(token.s, fixed_arc.0)
+                .saturating_add(*self.costs.get(fixed_arc.0, fixed_arc.1))
+                .saturating_add(*token.distances.get(fixed_arc.1, token.t));
+
+            if cost_via_fixed_arc == usize::MAX {
+                continue;
+            }
+
+            let mut cost_via_fixed_arc = cost_via_fixed_arc as i64;
+            cost_via_fixed_arc = cost_via_fixed_arc
+                .saturating_sub(*self.relative_draws.get(fixed_arc).unwrap_or(&0));
+
+            if cost_via_fixed_arc >= cost {
+                continue;
+            }
+
+            cost = cost_via_fixed_arc;
+            vertex = if token.s == fixed_arc.0 {
+                fixed_arc.1
+            } else {
+                *token.successors.get(token.s, fixed_arc.0)
+            };
+        }
+
+        (vertex, cost)
     }
 
     pub(crate) fn get_next_vertex(&mut self, token: &mut SupplyToken) -> Result<usize> {
-        if token.needs_refresh(&self.capacities) {
-            (token.distances, token.successors) = self.refresh(token)?;
-        }
+        // if token.needs_refresh(&self.capacities) {
+        (token.distances, token.successors) = self.refresh(token)?;
+        // }
 
         let next_vertex_via_direct_path = *token.successors.get(token.s, token.t);
         if next_vertex_via_direct_path == usize::MAX {
             return Err(SolverError::NoFeasibleFlowError(self.scenario_id));
         }
 
-        let closest_fixed_arc = match self.get_closest_fixed_arc(token) {
-            Some(fixed_arc) => fixed_arc,
-            None => return Ok(next_vertex_via_direct_path),
-        };
-
-        // dist(v, v) is always 0 thanks to Floyd-Warshall!
-        let next_vertex_via_fixed_arc = if token.s == closest_fixed_arc.0 {
-            *token.successors.get(token.s, closest_fixed_arc.1)
-        } else {
-            *token.successors.get(token.s, closest_fixed_arc.0)
-        };
-        if next_vertex_via_fixed_arc == usize::MAX {
+        let (next_vertex_via_fixed_arc, cost_via_fixed_arc) = self.get_closest_fixed_arc(token);
+        if next_vertex_via_fixed_arc == usize::MAX || cost_via_fixed_arc == i64::MAX {
             return Ok(next_vertex_via_direct_path);
         }
 
@@ -97,19 +109,7 @@ impl NetworkState {
             return Err(SolverError::NoFeasibleFlowError(self.scenario_id));
         }
 
-        let cost_via_fixed_arc = token
-            .distances
-            .get(token.s, closest_fixed_arc.0)
-            .saturating_add(*self.costs.get(closest_fixed_arc.0, closest_fixed_arc.1))
-            .saturating_add(*token.distances.get(closest_fixed_arc.1, token.t));
-        if cost_via_fixed_arc == usize::MAX {
-            return Ok(next_vertex_via_direct_path);
-        }
-
-        if (cost_via_direct_path as i64)
-            < (cost_via_fixed_arc as i64)
-                - *self.relative_draws.get(&closest_fixed_arc).unwrap_or(&0)
-        {
+        if (cost_via_direct_path as i64) < cost_via_fixed_arc {
             Ok(next_vertex_via_direct_path)
         } else {
             Ok(next_vertex_via_fixed_arc)

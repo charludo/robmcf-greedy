@@ -127,7 +127,6 @@ fn main() {
     }
     if *penalty_arcs {
         attempt!(network.add_penalty_arcs());
-        println!("{}", network);
     }
     if *lower_bound {
         attempt!(network.lower_bound());
@@ -135,7 +134,7 @@ fn main() {
     attempt!(network.preprocess());
     attempt!(network.solve());
     attempt!(network.solve_remainder());
-    // attempt!(network.validate_solution());
+    attempt!(network.validate_solution());
 
-    println!("{}", network);
+    // println!("{}", network);
 }

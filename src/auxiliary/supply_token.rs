@@ -15,8 +15,7 @@ impl SupplyToken {
     pub(crate) fn needs_refresh(&self, capacities: &Matrix<usize>) -> bool {
         self.intermediate_arc_set
             .indices()
-            .filter(|&(i, j)| *self.intermediate_arc_set.get(i, j))
-            .any(|(i, j)| *capacities.get(i, j) == 0)
+            .any(|(i, j)| *self.intermediate_arc_set.get(i, j) && *capacities.get(i, j) == 0)
     }
 }
 

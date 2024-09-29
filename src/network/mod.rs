@@ -226,22 +226,37 @@ impl Network {
             )));
         }
 
-        for (i, _) in self.balances.iter().enumerate() {
+        for solution in solutions {
             for (s, t) in self
                 .capacities
                 .indices()
-                .filter(|(s, t)| s != t && !self.fixed_arcs.contains(&(*s, *t)))
+                .filter(|&(s, t)| s != t && !self.fixed_arcs.contains(&(s, t)))
             {
-                if self.capacities.get(s, t) < solutions[i].arc_loads.get(s, t) {
+                if *self.capacities.get(s, t) < *solution.arc_loads.get(s, t) {
                     return Err(SolverError::NetworkShapeError(format!(
                         "Scenario {} puts load {} on arc ({}->{}), but its capacity is {}.",
-                        i,
-                        solutions[i].arc_loads.get(s, t),
+                        solution.id,
+                        solution.arc_loads.get(s, t),
                         self.vertices[s],
                         self.vertices[t],
                         self.capacities.get(s, t)
                     )));
                 }
+            }
+        }
+
+        for solution in solutions {
+            let total_supply = self.balances[solution.id].sum();
+            let excessions = solution
+                .arc_loads
+                .indices()
+                .filter(|(s, t)| *solution.arc_loads.get(*s, *t) > total_supply)
+                .collect::<Vec<_>>();
+            if !excessions.is_empty() {
+                return Err(SolverError::NetworkShapeError(format!(
+                    "Scenario {} has {} supply, but the following arcs exceed this: {:?}",
+                    solution.id, total_supply, excessions
+                )));
             }
         }
 
