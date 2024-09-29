@@ -5,74 +5,58 @@ use crate::{
     Matrix, Result, SolverError,
 };
 
+use super::supply_token::SupplyToken;
+
 #[derive(Debug, Clone)]
 pub(crate) struct NetworkState {
-    pub(crate) intermediate_arc_sets: Matrix<Matrix<bool>>,
-    pub(crate) fixed_arcs: Vec<(usize, usize)>,
+    pub(crate) scenario_id: usize,
 
-    pub(crate) distances: Matrix<Matrix<usize>>,
-    pub(crate) successors: Matrix<Matrix<usize>>,
+    pub(crate) fixed_arcs: Vec<(usize, usize)>,
+    pub(crate) relative_draws: HashMap<(usize, usize), i64>,
 
     pub(crate) capacities: Matrix<usize>,
     pub(crate) costs: Arc<Matrix<usize>>,
 
     pub(crate) arc_loads: Matrix<usize>,
-
-    pub(crate) relative_draws: HashMap<(usize, usize), i64>,
-    pub(crate) needs_refresh: Matrix<bool>,
 }
 
 impl NetworkState {
-    fn refresh(&mut self, origin: usize, dest: usize) -> Result<()> {
-        log::debug!("Performing scheduled refresh for (s, t) pair ({origin}, {dest}).");
+    fn refresh(&mut self, token: &SupplyToken) -> Result<(Matrix<usize>, Matrix<usize>)> {
+        log::debug!(
+            "({}): Performing scheduled refresh for token {}.",
+            self.scenario_id,
+            token,
+        );
         let (distance_map, predecessor_map) = floyd_warshall(
-            &self
-                .capacities
-                .apply_mask(self.intermediate_arc_sets.get(origin, dest), 0),
+            &self.capacities.apply_mask(&token.intermediate_arc_set, 0),
             &self.costs,
         );
-        let successor_map = invert_predecessors(&predecessor_map);
+        let successor_map = invert_predecessors(&predecessor_map)?;
 
-        self.distances.set(origin, dest, distance_map);
-        self.successors.set(origin, dest, successor_map?);
-
-        self.needs_refresh.set(origin, dest, false);
-        Ok(())
+        Ok((distance_map, successor_map))
     }
 
-    fn schedule_refresh(&mut self, s: usize, t: usize) {
-        log::info!("Arc ({s}->{t}) has reached its capacity. Scheduling refreshes for all affected (s, t) pairs.");
-        let affected_indices = self
-            .intermediate_arc_sets
-            .indices()
-            .filter(|(origin, dest)| *self.intermediate_arc_sets.get(*origin, *dest).get(s, t));
-        affected_indices.for_each(|(origin, dest)| {
-            log::debug!("-> ({origin}, {dest})");
-            self.needs_refresh.set(origin, dest, true);
-        });
-    }
-
-    pub(crate) fn use_arc(&mut self, s: usize, t: usize) {
-        let _ = self.arc_loads.increment(s, t);
-        let remaining_capacity = self.capacities.decrement(s, t);
+    pub(crate) fn use_arc(&mut self, token: &mut SupplyToken, next_vertex: usize) {
+        token.intermediate_arc_set.set(token.s, next_vertex, false);
+        let _ = self.arc_loads.increment(token.s, next_vertex);
+        let remaining_capacity = self.capacities.decrement(token.s, next_vertex);
         if remaining_capacity == 0 {
-            self.schedule_refresh(s, t);
+            log::info!(
+                "({}): Arc ({}->{}) has reached its capacity. Tokens will be refreshed lazily.",
+                self.scenario_id,
+                token.s,
+                next_vertex,
+            );
         }
     }
 
-    fn get_closest_fixed_arc(
-        &self,
-        origin: usize,
-        s: usize,
-        dest: usize,
-    ) -> Option<(usize, usize)> {
-        let distances = self.distances.get(origin, dest);
+    fn get_closest_fixed_arc(&self, token: &SupplyToken) -> Option<(usize, usize)> {
         self.fixed_arcs
             .iter()
             .min_by_key(|(a_0, a_1)| {
-                let dist = (*distances.get(s, *a_0))
+                let dist = (*token.distances.get(token.s, *a_0))
                     .saturating_add(*self.costs.get(*a_0, *a_1))
-                    .saturating_add(*distances.get(*a_1, dest));
+                    .saturating_add(*token.distances.get(*a_1, token.t));
                 if dist == usize::MAX {
                     dist as i64
                 } else {
@@ -83,50 +67,41 @@ impl NetworkState {
             .copied()
     }
 
-    pub(crate) fn get_next_vertex(
-        &mut self,
-        scenario_id: usize,
-        origin: usize,
-        s: usize,
-        dest: usize,
-    ) -> Result<usize> {
-        if *self.needs_refresh.get(origin, dest) {
-            self.refresh(origin, dest)?;
+    pub(crate) fn get_next_vertex(&mut self, token: &mut SupplyToken) -> Result<usize> {
+        if token.needs_refresh(&self.capacities) {
+            (token.distances, token.successors) = self.refresh(token)?;
         }
 
-        let successors = self.successors.get(origin, dest);
-        let next_vertex_via_direct_path = *successors.get(s, dest);
-
+        let next_vertex_via_direct_path = *token.successors.get(token.s, token.t);
         if next_vertex_via_direct_path == usize::MAX {
-            return Err(SolverError::NoFeasibleFlowError(scenario_id));
+            return Err(SolverError::NoFeasibleFlowError(self.scenario_id));
         }
 
-        let closest_fixed_arc = match self.get_closest_fixed_arc(origin, s, dest) {
+        let closest_fixed_arc = match self.get_closest_fixed_arc(token) {
             Some(fixed_arc) => fixed_arc,
             None => return Ok(next_vertex_via_direct_path),
         };
 
         // dist(v, v) is always 0 thanks to Floyd-Warshall!
-        let next_vertex_via_fixed_arc = if s == closest_fixed_arc.0 {
-            *successors.get(s, closest_fixed_arc.1)
+        let next_vertex_via_fixed_arc = if token.s == closest_fixed_arc.0 {
+            *token.successors.get(token.s, closest_fixed_arc.1)
         } else {
-            *successors.get(s, closest_fixed_arc.0)
+            *token.successors.get(token.s, closest_fixed_arc.0)
         };
         if next_vertex_via_fixed_arc == usize::MAX {
             return Ok(next_vertex_via_direct_path);
         }
 
-        let distances = self.distances.get(origin, dest);
-
-        let cost_via_direct_path = *distances.get(s, dest);
+        let cost_via_direct_path = *token.distances.get(token.s, token.t);
         if cost_via_direct_path == usize::MAX {
-            return Err(SolverError::NoFeasibleFlowError(scenario_id));
+            return Err(SolverError::NoFeasibleFlowError(self.scenario_id));
         }
 
-        let cost_via_fixed_arc = distances
-            .get(s, closest_fixed_arc.0)
+        let cost_via_fixed_arc = token
+            .distances
+            .get(token.s, closest_fixed_arc.0)
             .saturating_add(*self.costs.get(closest_fixed_arc.0, closest_fixed_arc.1))
-            .saturating_add(*distances.get(closest_fixed_arc.1, dest));
+            .saturating_add(*token.distances.get(closest_fixed_arc.1, token.t));
         if cost_via_fixed_arc == usize::MAX {
             return Ok(next_vertex_via_direct_path);
         }

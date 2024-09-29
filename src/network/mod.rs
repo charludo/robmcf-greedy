@@ -97,11 +97,11 @@ impl Network {
             for (j, row) in matrix.as_rows().iter().enumerate() {
                 if row.iter().sum::<usize>() != as_columns[j].clone().into_iter().sum::<usize>() {
                     log::warn!(
-                        "Vertex {} has supply {}, but demand {} in scenario {}.",
+                        "({}): Vertex {} has supply {}, but demand {}.",
+                        i,
                         self.vertices[j],
                         row.iter().sum::<usize>(),
                         as_columns[j].clone().into_iter().sum::<usize>(),
-                        i
                     );
                 }
             }

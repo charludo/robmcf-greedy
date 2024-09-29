@@ -22,23 +22,17 @@ pub(crate) fn greedy(
                     let mut i = 0;
                     while i < scenario.supply_tokens.len() {
                         let token = &mut scenario.supply_tokens[i];
-                        let next_vertex = scenario.network_state.get_next_vertex(
-                            scenario.id,
-                            token.origin,
-                            token.s,
-                            token.t,
-                        )?;
+                        let next_vertex = scenario.network_state.get_next_vertex(token)?;
 
                         log::debug!(
-                            "Moving supply in scenario {} with origin {} and destination {} via: ({}->{})",
+                            "({}): Moving supply token {} via: ({}->{})",
                             scenario.id,
-                            token.origin,
-                            token.t,
+                            token,
                             token.s,
                             next_vertex
                         );
 
-                        scenario.network_state.use_arc(token.s, next_vertex);
+                        scenario.network_state.use_arc(token, next_vertex);
                         token.s = next_vertex;
 
                         if token.s == token.t {

@@ -10,6 +10,8 @@ pub(crate) fn generate_supply_tokens(
     fixed_arcs: &[(usize, usize)],
     remainder_method: RemainderSolveMethod,
     arc_sets: &Matrix<Matrix<bool>>,
+    dist: &Matrix<usize>,
+    succ: &Matrix<usize>,
 ) -> Vec<SupplyToken> {
     let mut tokens: Vec<SupplyToken> = vec![];
     supply
@@ -32,7 +34,7 @@ pub(crate) fn generate_supply_tokens(
                 }
             }
 
-            let token = SupplyToken { origin: s, s, t };
+            let token = SupplyToken { origin: s, s, t , intermediate_arc_set: arc_sets.get(s, t).to_owned(), distances: dist.to_owned(), successors: succ.to_owned()};
             log::debug!("{}x {token}", *supply.get(s, t));
 
             // we are working with single units of supply in order to prevent dead ends
@@ -127,8 +129,14 @@ mod tests {
     fn test_generate_supply_tokens() {
         let supply: Matrix<usize> = Matrix::from_elements(&[0, 2, 1, 1, 0, 1, 0, 6, 0], 3, 3);
 
-        let actual_result =
-            generate_supply_tokens(&supply, &[], RemainderSolveMethod::Greedy, &Matrix::empty());
+        let actual_result = generate_supply_tokens(
+            &supply,
+            &[],
+            RemainderSolveMethod::Greedy,
+            &Matrix::filled_with(Matrix::filled_with(true, 3, 3), 3, 3),
+            &Matrix::filled_with(0, 3, 3),
+            &Matrix::filled_with(0, 3, 3),
+        );
 
         assert_eq!(11, actual_result.len());
     }
