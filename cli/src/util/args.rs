@@ -111,7 +111,7 @@ pub(crate) struct RandomizationArgs {
     /// Minimum fraction of vertices each vertex has supply greater than zero for
     #[arg(
         long,
-        default_value_t = 0.1,
+        default_value_t = 0.01,
         display_order = 302,
         help_heading = "Random Scenarios"
     )]
@@ -120,7 +120,7 @@ pub(crate) struct RandomizationArgs {
     /// Maximum fraction of vertices each vertex has supply greater than zero for
     #[arg(
         long,
-        default_value_t = 0.5,
+        default_value_t = 0.2,
         display_order = 303,
         help_heading = "Random Scenarios"
     )]
@@ -129,7 +129,7 @@ pub(crate) struct RandomizationArgs {
     /// Minimum supply value
     #[arg(
         long,
-        default_value_t = 2,
+        default_value_t = 1,
         display_order = 304,
         help_heading = "Random Scenarios"
     )]
@@ -138,7 +138,7 @@ pub(crate) struct RandomizationArgs {
     /// Maximum supply value
     #[arg(
         long,
-        default_value_t = 8,
+        default_value_t = 5,
         display_order = 305,
         help_heading = "Random Scenarios"
     )]
