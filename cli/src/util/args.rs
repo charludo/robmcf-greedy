@@ -70,7 +70,7 @@ pub(crate) struct RandomizationArgs {
     /// Minimum capacity of generated arcs
     #[arg(
         long,
-        default_value_t = 10,
+        default_value_t = 15,
         display_order = 102,
         help_heading = "Random Capacities"
     )]
@@ -79,7 +79,7 @@ pub(crate) struct RandomizationArgs {
     /// Maximum capacity of generated arcs
     #[arg(
         long,
-        default_value_t = 30,
+        default_value_t = 40,
         display_order = 103,
         help_heading = "Random Capacities"
     )]
@@ -88,7 +88,7 @@ pub(crate) struct RandomizationArgs {
     /// Minimum arc cost
     #[arg(
         long,
-        default_value_t = 4,
+        default_value_t = 1,
         display_order = 201,
         help_heading = "Random Costs"
     )]
@@ -97,7 +97,7 @@ pub(crate) struct RandomizationArgs {
     /// Maximum arc cost
     #[arg(
         long,
-        default_value_t = 8,
+        default_value_t = 12,
         display_order = 202,
         help_heading = "Random Costs"
     )]
