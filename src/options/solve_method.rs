@@ -22,3 +22,15 @@ impl Display for RemainderSolveMethod {
         }
     }
 }
+
+impl RemainderSolveMethod {
+    pub(crate) fn shorthand(&self) -> String {
+        match self {
+            Self::None => "None",
+            Self::Greedy => "Greedy",
+            Self::Gurobi => "Gurobi",
+            Self::Ilp => "ILP",
+        }
+        .to_string()
+    }
+}

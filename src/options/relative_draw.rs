@@ -1,8 +1,9 @@
 use std::cmp::max;
+use strum::Display;
 
 use clap::ValueEnum;
 
-#[derive(ValueEnum, Debug, Clone)]
+#[derive(ValueEnum, Debug, Clone, Display)]
 #[clap(rename_all = "kebab-case")]
 pub enum RelativeDrawFunction {
     Linear,

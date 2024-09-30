@@ -2,9 +2,10 @@ use std::time::{Duration, Instant};
 
 use robmcf_greedy::Network;
 
-pub(crate) fn run_benchmark(network: &Network, iterations: usize) {
+pub(crate) fn run_benchmark(network: &Network, iterations: usize) -> (Network, usize, usize) {
     let (mut preprocess, mut solve): (Duration, Duration) = (Duration::ZERO, Duration::ZERO);
 
+    let mut solved = None;
     for _ in 0..iterations {
         let mut n: Network = network.clone();
 
@@ -18,6 +19,10 @@ pub(crate) fn run_benchmark(network: &Network, iterations: usize) {
 
         preprocess += elapsed_preprocess;
         solve += elapsed_solve;
+
+        if solved.is_none() {
+            solved = Some(n);
+        }
     }
 
     preprocess /= iterations as u32;
@@ -35,4 +40,10 @@ pub(crate) fn run_benchmark(network: &Network, iterations: usize) {
         solve.subsec_millis(),
         iterations,
     );
+
+    (
+        solved.unwrap(),
+        preprocess.as_millis() as usize,
+        solve.as_millis() as usize,
+    )
 }

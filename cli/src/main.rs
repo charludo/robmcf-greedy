@@ -71,7 +71,10 @@ fn main() {
     let (output, lower_bound, penalty_arcs) = match &args.command {
         Commands::Benchmark { iterations, .. } => {
             attempt!(network.validate_network());
-            run_benchmark(&network, *iterations);
+            let (network, time_preprocess, time_solve) = run_benchmark(&network, *iterations);
+            if let Some(export) = args.export {
+                attempt!(network.export(&export, Some(time_preprocess), Some(time_solve)));
+            };
             return;
         }
         Commands::Latex {
@@ -142,6 +145,9 @@ fn main() {
     attempt!(network.solve());
     attempt!(network.solve_remainder());
     attempt!(network.validate_solution());
+    if let Some(export) = args.export {
+        attempt!(network.export(&export, None, None));
+    };
 
     println!("{}", network);
 }

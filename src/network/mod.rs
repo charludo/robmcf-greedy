@@ -1,4 +1,5 @@
 mod display;
+mod export;
 mod random;
 mod solution;
 mod to_latex;
@@ -44,6 +45,31 @@ impl Network {
         let json_str = serde_json::to_string(self)?;
         log::debug!("Writing\n{json_str}\nto {filename}");
         std::fs::write(filename, json_str)?;
+        Ok(())
+    }
+
+    pub fn export(
+        &self,
+        filename: &str,
+        time_preprocess: Option<usize>,
+        time_solve: Option<usize>,
+    ) -> Result<()> {
+        match &self.solutions {
+            Some(_) => {}
+            None => return Err(SolverError::SkippedSolveError),
+        };
+        let file_exists = std::path::Path::new(filename).exists();
+        let file = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(filename)?;
+        let mut wtr = csv::WriterBuilder::new()
+            .has_headers(!file_exists)
+            .from_writer(file);
+        let data = export::NetworkData::from_network(self, time_preprocess, time_solve);
+        wtr.serialize(&data)?;
+        wtr.flush()?;
+        log::debug!("Writing\n{:?}\ntp {filename}", data);
         Ok(())
     }
 

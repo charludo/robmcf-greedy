@@ -289,6 +289,27 @@ impl Matrix<usize> {
     }
 }
 
+impl Matrix<i64> {
+    pub fn subtract(&self, other: &Matrix<i64>) -> Self {
+        assert!(self.num_rows() == other.num_rows());
+        assert!(self.num_columns() == other.num_columns());
+
+        Matrix::from_elements(
+            self.elements()
+                .zip(other.elements())
+                .map(|(a, b)| a.saturating_sub(*b))
+                .collect::<Vec<_>>()
+                .as_slice(),
+            self.num_rows(),
+            self.num_columns(),
+        )
+    }
+
+    pub fn sum(&self) -> i64 {
+        self.elements().sum()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

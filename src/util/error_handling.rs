@@ -5,6 +5,7 @@ pub type Result<T> = std::result::Result<T, SolverError>;
 #[derive(Debug)]
 pub enum SolverError {
     NetworkIOError(std::io::Error),
+    NetworkExportError(csv::Error),
     NetworkSerializationError(serde_json::Error),
     NetworkShapeError(String),
 
@@ -28,6 +29,7 @@ impl Display for SolverError {
             "{}",
             match self {
                 SolverError::NetworkIOError(e) => format!("Failed to read network from file: {e}."),
+                SolverError::NetworkExportError(e) => format!("Failed to export the network: {e}."),
                 SolverError::NetworkSerializationError(e) =>
                     format!("Failed to parse the network: {e}."),
                 SolverError::NetworkShapeError(e) => format!("Network is invalid: {e}"),
@@ -70,5 +72,11 @@ impl From<std::io::Error> for SolverError {
 impl From<grb::Error> for SolverError {
     fn from(value: grb::Error) -> Self {
         SolverError::GurobiOpsError(value)
+    }
+}
+
+impl From<csv::Error> for SolverError {
+    fn from(value: csv::Error) -> Self {
+        SolverError::NetworkExportError(value)
     }
 }

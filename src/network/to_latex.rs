@@ -70,23 +70,26 @@ impl Network {
             }
         }
 
-        let width = 12.0;
-        let height = width * (max_y - min_y) / (max_x - min_x);
+        max_x += min_x.abs();
+        max_y += min_y.abs();
+
+        let width = 5.0;
+        let height = width * max_y / max_x;
 
         self.vertices
             .iter()
             .map(|v| Vertex {
                 name: v.name.clone(),
                 is_station: v.is_station,
-                x: if max_x == 0. && min_x == 0.0 {
+                x: if max_x == 0.0 {
                     0.0
                 } else {
-                    ((v.x - min_x) / (max_x - min_x)) * width
+                    (v.x + min_x.abs()) / max_x * width
                 },
-                y: if max_y == 0.0 && min_y == 0.0 {
+                y: if max_y == 0.0 {
                     0.0
                 } else {
-                    ((v.y - min_y) / (max_y - min_y)) * height
+                    (v.y + min_y.abs()) / max_y * height
                 },
             })
             .collect::<Vec<Vertex>>()

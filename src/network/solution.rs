@@ -33,7 +33,7 @@ impl ScenarioSolution {
 
 pub trait Solution {
     fn cost(&self, cost_matrix: &Matrix<usize>, cost_fn: &CostFunction) -> usize;
-    fn consistent_flows(&self, fixed_arcs: &[(usize, usize)]) -> Matrix<usize>;
+    fn consistent_flows(&self, fixed_arcs: &[(usize, usize)]) -> Matrix<i64>;
     fn consistent_flows_colorized(
         &self,
         fixed_arcs: &[(usize, usize)],
@@ -56,19 +56,19 @@ impl Solution for [ScenarioSolution] {
         )
     }
 
-    fn consistent_flows(&self, fixed_arcs: &[(usize, usize)]) -> Matrix<usize> {
+    fn consistent_flows(&self, fixed_arcs: &[(usize, usize)]) -> Matrix<i64> {
         let mut fixed_arc_loads = Matrix::filled_with(
-            usize::MAX,
+            i64::MAX,
             self[0].arc_loads.num_rows(),
             self[0].arc_loads.num_columns(),
         );
         for (s, t) in fixed_arcs.iter() {
-            let min_load = self
+            let min_load = *self
                 .iter()
                 .map(|scenario| scenario.arc_loads.get(*s, *t))
                 .min()
-                .unwrap_or(&0);
-            fixed_arc_loads.set(*s, *t, *min_load);
+                .unwrap_or(&0) as i64;
+            fixed_arc_loads.set(*s, *t, min_load);
         }
         fixed_arc_loads
     }
@@ -83,7 +83,7 @@ impl Solution for [ScenarioSolution] {
             fixed_arc_loads
                 .elements()
                 .map(|e| {
-                    if *e == usize::MAX {
+                    if *e == i64::MAX {
                         " ".to_string()
                     } else {
                         e.to_string()
@@ -110,10 +110,10 @@ impl Solution for [ScenarioSolution] {
                 .map(|(s, t)| {
                     let first = *self_flows.get(s, t);
                     let second = *other_flows.get(s, t);
-                    if first == usize::MAX || second == usize::MAX {
+                    if first == i64::MAX || second == i64::MAX {
                         " ".to_string().color(Color::White)
                     } else {
-                        let diff = (first as i64) - (second as i64);
+                        let diff = first - second;
                         match diff.cmp(&0) {
                             Ordering::Equal => diff.to_string().color(Color::Blue),
                             Ordering::Greater => diff.to_string().color(Color::Green),

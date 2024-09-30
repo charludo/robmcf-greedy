@@ -1,6 +1,7 @@
 use clap::ValueEnum;
+use strum::Display;
 
-#[derive(ValueEnum, Debug, Clone)]
+#[derive(ValueEnum, Debug, Clone, Display)]
 #[clap(rename_all = "kebab-case")]
 pub enum DeltaFunction {
     LinearLow,

@@ -22,6 +22,10 @@ pub(crate) struct Args {
     #[arg(long, short, long, global = true, display_order = 3)]
     pub(crate) quiet: bool,
 
+    /// [E]xport all resulting measures, appending them to the given file.
+    #[arg(long, short, long, global = true, display_order = 4)]
+    pub(crate) export: Option<String>,
+
     /// Function used to calculate the [c]ost of the overall solution
     #[arg(long, short='c', value_enum, default_value_t = CostFunction::Max, global = true, display_order = 11, help_heading="Solver Parameters")]
     pub(crate) costs: CostFunction,
