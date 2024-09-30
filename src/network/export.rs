@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{network::Solution, CostFunction};
+use crate::{matrix::Matrix, network::Solution, CostFunction};
 
 use super::Network;
 
@@ -11,6 +11,7 @@ pub(super) struct NetworkData {
 
     arc_density: f32,
     num_fixed_arcs: usize,
+    total_consistent_flows: usize,
     robustness_gain: Option<i64>,
 
     num_scenarios: usize,
@@ -54,6 +55,22 @@ impl NetworkData {
             arc_density: network.capacities.elements().filter(|e| **e > 0).count() as f32
                 / network.vertices.len().pow(2) as f32,
             num_fixed_arcs: network.fixed_arcs.len(),
+            total_consistent_flows: match &network.solutions {
+                Some(solutions) => {
+                    let mut fixed_arc_loads =
+                        Matrix::filled_with(0, network.vertices.len(), network.vertices.len());
+                    for (s, t) in network.fixed_arcs.iter() {
+                        let min_load = *solutions
+                            .iter()
+                            .map(|scenario| scenario.arc_loads.get(*s, *t))
+                            .min()
+                            .unwrap_or(&0);
+                        fixed_arc_loads.set(*s, *t, min_load);
+                    }
+                    fixed_arc_loads.sum()
+                }
+                _ => 0,
+            },
             robustness_gain: match (&network.baseline, &network.solutions) {
                 (Some(baseline), Some(solutions)) => Some(
                     solutions
