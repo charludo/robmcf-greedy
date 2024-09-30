@@ -230,4 +230,16 @@ pub(crate) enum Commands {
         #[command(flatten)]
         random: RandomizationArgs,
     },
+    /// Export the network vertices and arcs as a latex figure.
+    Latex {
+        /// Path to a file containing a network to be used as input.
+        in_file: String,
+
+        /// Where to save the output to.
+        out_file: String,
+
+        /// Disable vertex and arc labels. Useful for large networks.
+        #[arg(long, display_order = 0)]
+        no_text: bool,
+    },
 }

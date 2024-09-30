@@ -57,6 +57,7 @@ fn main() {
         Commands::Benchmark { file, .. } => Network::from_file(&options, file),
         Commands::Solve { file, .. } => Network::from_file(&options, file),
         Commands::Ilp { file } => Network::from_file(&options, file),
+        Commands::Latex { in_file, .. } => Network::from_file(&options, in_file),
     };
 
     let mut network = match network {
@@ -71,6 +72,12 @@ fn main() {
         Commands::Benchmark { iterations, .. } => {
             attempt!(network.validate_network());
             run_benchmark(&network, *iterations);
+            return;
+        }
+        Commands::Latex {
+            out_file, no_text, ..
+        } => {
+            attempt!(network.to_latex(out_file, *no_text));
             return;
         }
         Commands::Ilp { .. } => {

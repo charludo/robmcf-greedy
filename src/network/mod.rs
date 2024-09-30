@@ -1,6 +1,7 @@
 mod display;
 mod random;
 mod solution;
+mod to_latex;
 mod vertex;
 
 use serde::{Deserialize, Serialize};
