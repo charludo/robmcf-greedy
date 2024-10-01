@@ -67,6 +67,15 @@ impl Network {
         log::debug!("Randomizing capacities: arc_density={arc_density}, umin={umin}, umax={umax}.");
         self.capacities =
             self.generate_random_matrix(self.vertices.len(), arc_density, (umin, umax));
+
+        // Prevent orpahn vertices
+        let mut rng = rand::thread_rng();
+        for i in 0..self.vertices.len() {
+            if *self.capacities.get(i, (i + 1) % self.vertices.len()) == 0 {
+                self.capacities
+                    .set(i, (i + 1) % self.vertices.len(), rng.gen_range(umin..umax));
+            }
+        }
     }
 
     pub fn randomize_costs(&mut self, cmin: usize, cmax: usize) {
