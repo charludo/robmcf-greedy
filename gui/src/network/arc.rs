@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy_mod_picking::events::{DragEnd, DragEnter, DragLeave, DragStart, Pointer};
-use bevy_mod_picking::prelude::{Listener, Pickable, PointerButton};
+use bevy_mod_picking::events::{Click, DragEnd, DragEnter, DragLeave, DragStart, Pointer};
+use bevy_mod_picking::prelude::{Listener, On, Pickable, PointerButton};
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
@@ -66,7 +66,7 @@ impl Arc {
     pub fn spawn_arc(
         &self,
     ) -> (
-        (ShapeBundle, Stroke, Arc, PickableBundle),
+        (ShapeBundle, Stroke, Arc, PickableBundle, On<Pointer<Click>>),
         (ShapeBundle, Stroke, Fill, Arrow, PickableBundle),
     ) {
         let mut rng = rand::thread_rng();
@@ -86,6 +86,7 @@ impl Arc {
             Stroke::new(self.color, self.line_width),
             *self,
             PickableBundle::default(),
+            On::<Pointer<Click>>::run(toggle_arc_fixed),
         );
 
         let shape = shapes::RegularPolygon {
@@ -278,4 +279,28 @@ pub fn finalize_arc_creation(
     commands.entity(entity).remove::<PartialArc>();
     network.n.capacities.set(arc.s, arc.t, arc.capacity);
     network.n.costs.set(arc.s, arc.t, arc.cost);
+}
+
+pub fn toggle_arc_fixed(
+    click: Listener<Pointer<Click>>,
+    mut query_arc: Query<(&mut Arc, &mut Stroke)>,
+    app_settings: Res<AppSettings>,
+) {
+    if click.button != PointerButton::Secondary {
+        return;
+    }
+
+    let Ok((mut arc, mut stroke)) = query_arc.get_mut(click.target) else {
+        return;
+    };
+
+    arc.fixed = !arc.fixed;
+    if arc.fixed {
+        arc.color = app_settings.highlight_color;
+        println!("Not fixed -> fixed");
+    } else {
+        arc.color = app_settings.baseline_color;
+        println!("Fixed -> not fixed");
+    }
+    stroke.color = arc.color;
 }

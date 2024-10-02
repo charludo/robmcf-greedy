@@ -33,7 +33,7 @@ fn main() {
     // .expect("An error occurred while loading the network.");
     let n = Network::from_file(
         &Options::default(),
-        "../masterarbeit-scraper/output/network_aachen.json",
+        "../masterarbeit-scraper/output/network_cologne.json",
     )
     .expect("An error occurred while loading the network.");
     let network = NetworkWrapper {
