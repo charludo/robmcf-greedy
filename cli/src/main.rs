@@ -78,9 +78,12 @@ fn main() {
             return;
         }
         Commands::Latex {
-            out_file, no_text, ..
+            out_file,
+            no_text,
+            width,
+            ..
         } => {
-            attempt!(network.to_latex(out_file, *no_text));
+            attempt!(network.to_latex(out_file, *no_text, *width));
             return;
         }
         Commands::Ilp { .. } => {

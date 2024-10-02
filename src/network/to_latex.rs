@@ -2,8 +2,8 @@ use super::{Network, Vertex};
 use crate::Result;
 
 impl Network {
-    pub fn to_latex(&self, filename: &str, no_text: bool) -> Result<()> {
-        let vertices = self.normalize_vertex_positions();
+    pub fn to_latex(&self, filename: &str, no_text: bool, width: f32) -> Result<()> {
+        let vertices = self.normalize_vertex_positions(width);
         let mut latex = Vec::new();
 
         latex.push(
@@ -49,7 +49,7 @@ impl Network {
         Ok(())
     }
 
-    fn normalize_vertex_positions(&self) -> Vec<Vertex> {
+    fn normalize_vertex_positions(&self, width: f32) -> Vec<Vertex> {
         let mut min_x = 0.0;
         let mut max_x = 0.0;
         let mut min_y = 0.0;
@@ -73,7 +73,6 @@ impl Network {
         max_x += min_x.abs();
         max_y += min_y.abs();
 
-        let width = 5.0;
         let height = width * max_y / max_x;
 
         self.vertices

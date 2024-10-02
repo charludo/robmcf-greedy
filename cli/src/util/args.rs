@@ -245,5 +245,9 @@ pub(crate) enum Commands {
         /// Disable vertex and arc labels. Useful for large networks.
         #[arg(long, display_order = 0)]
         no_text: bool,
+
+        /// Width of the resulting tikz picture.
+        #[arg(long, display_order = 0, default_value_t = 12.0)]
+        width: f32,
     },
 }
