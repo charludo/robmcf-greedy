@@ -20,22 +20,8 @@ struct NetworkWrapper {
 }
 
 fn main() {
-    // let n = Network::from_random(
-    //     20,       // num_vertices,
-    //     0.1,      // connectedness,
-    //     0.3,      // supply_density,
-    //     2,        // num_scenarios,
-    //     (3, 8),   // range_supply,
-    //     (15, 40), // range_capacity,
-    //     (4, 8),   // range_cost,
-    //     5,        // num_fixed_arcs,
-    // )
-    // .expect("An error occurred while loading the network.");
-    let n = Network::from_file(
-        &Options::default(),
-        "../masterarbeit-scraper/output/network_cologne.json",
-    )
-    .expect("An error occurred while loading the network.");
+    let n = Network::from_file(&Options::default(), "examples/aachen.json")
+        .expect("An error occurred while loading the network.");
     let network = NetworkWrapper {
         num_vertices: n.vertices.len(),
         n,
