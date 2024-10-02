@@ -249,5 +249,9 @@ pub(crate) enum Commands {
         /// Width of the resulting tikz picture.
         #[arg(long, display_order = 0, default_value_t = 12.0)]
         width: f32,
+
+        /// Enable marking of "station" vertices.
+        #[arg(long, display_order = 0)]
+        mark_stations: bool,
     },
 }

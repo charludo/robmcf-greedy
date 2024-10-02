@@ -2,20 +2,32 @@ use super::{Network, Vertex};
 use crate::Result;
 
 impl Network {
-    pub fn to_latex(&self, filename: &str, no_text: bool, width: f32) -> Result<()> {
+    pub fn to_latex(
+        &self,
+        filename: &str,
+        no_text: bool,
+        width: f32,
+        mark_stations: bool,
+    ) -> Result<()> {
         let vertices = self.normalize_vertex_positions(width);
         let mut latex = Vec::new();
 
         latex.push(
             "\\begin{figure}[t]
 	            \\centering
+                \\resizebox{\\textwidth}{!}{%
 	            \\begin{tikzpicture}[>=stealth, auto, node distance=2cm, thick]"
                 .to_string(),
         );
 
         for (i, vertex) in vertices.iter().enumerate() {
             latex.push(format!(
-                "\\node[circle, draw] (v{i}) at ({},{}) {{{}}};",
+                "\\node[circle, draw{}] (v{i}) at ({},{}) {{{}}};",
+                if mark_stations && vertex.is_station {
+                    ", fill"
+                } else {
+                    ""
+                },
                 vertex.x,
                 vertex.y,
                 if no_text { "" } else { &vertex.name }
@@ -36,6 +48,7 @@ impl Network {
 
         latex.push(
             "\\end{tikzpicture}
+            }%
 	        \\caption{TODO.}
 	        \\label{fig:TODO}
         \\end{figure}"

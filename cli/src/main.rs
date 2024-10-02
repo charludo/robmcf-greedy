@@ -81,9 +81,10 @@ fn main() {
             out_file,
             no_text,
             width,
+            mark_stations,
             ..
         } => {
-            attempt!(network.to_latex(out_file, *no_text, *width));
+            attempt!(network.to_latex(out_file, *no_text, *width, *mark_stations));
             return;
         }
         Commands::Ilp { .. } => {
