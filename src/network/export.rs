@@ -21,6 +21,7 @@ pub(super) struct NetworkData {
     supply_min: usize,
     supply_avg: usize,
     supply_max: usize,
+    slack_excession: usize,
 
     slack_min: usize,
     slack_avg: usize,
@@ -158,6 +159,13 @@ impl NetworkData {
                 .map(|s| s.slack)
                 .max()
                 .unwrap_or_default(),
+            slack_excession: network
+                .solutions
+                .clone()
+                .unwrap_or_default()
+                .iter()
+                .map(|s| 0.max(s.slack - network.options.slack_fn.apply(&network.balances)[s.id]))
+                .sum(),
 
             lower_bound_max: network
                 .baseline

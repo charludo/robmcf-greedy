@@ -39,7 +39,7 @@ pub(crate) struct Args {
     pub(crate) draw: RelativeDrawFunction,
 
     /// Function used in determining the total [s]lack available to scenarios
-    #[arg(long, short='s', value_enum, default_value_t = SlackFunction::DifferenceToMaxPlus_10, global = true, display_order = 14, help_heading="Solver Parameters")]
+    #[arg(long, short='s', value_enum, default_value_t = SlackFunction::DifferenceToMax, global = true, display_order = 14, help_heading="Solver Parameters")]
     pub(crate) slack: SlackFunction,
 
     /// [M]ethod by which a solution for routing supply which cannot use fixed arcs is found
