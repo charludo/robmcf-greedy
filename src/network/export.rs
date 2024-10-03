@@ -87,8 +87,8 @@ impl NetworkData {
                 .unwrap_or_default()
                 .iter()
                 .map(|s| {
-                    let excession =
-                        (s.slack - network.options.slack_fn.apply(&network.balances)[s.id]) as f32;
+                    let excession = s.slack as f32
+                        - network.options.slack_fn.apply(&network.balances)[s.id] as f32;
                     if excession <= 0.0 {
                         1.0
                     } else {
@@ -98,7 +98,7 @@ impl NetworkData {
                             .map(|&(i, j)| *s.arc_loads.get(i, j))
                             .sum::<usize>()
                             as f32;
-                        excession / (excession + scenario_consistent_flow)
+                        scenario_consistent_flow / (excession + scenario_consistent_flow)
                     }
                 })
                 .fold(f32::INFINITY, |a, b| a.min(b)),
