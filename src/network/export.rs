@@ -13,6 +13,7 @@ pub(super) struct NetworkData {
     num_fixed_arcs: usize,
     total_consistent_flows: usize,
     robustness_gain: Option<i64>,
+    consistency: f32,
 
     num_scenarios: usize,
     supply_density_min: f32,
@@ -21,7 +22,6 @@ pub(super) struct NetworkData {
     supply_min: usize,
     supply_avg: usize,
     supply_max: usize,
-    slack_excession: usize,
 
     slack_min: usize,
     slack_avg: usize,
@@ -81,6 +81,27 @@ impl NetworkData {
                 ),
                 _ => None,
             },
+            consistency: network
+                .solutions
+                .clone()
+                .unwrap_or_default()
+                .iter()
+                .map(|s| {
+                    let excession =
+                        (s.slack - network.options.slack_fn.apply(&network.balances)[s.id]) as f32;
+                    if excession <= 0.0 {
+                        1.0
+                    } else {
+                        let scenario_consistent_flow = network
+                            .fixed_arcs
+                            .iter()
+                            .map(|&(i, j)| *s.arc_loads.get(i, j))
+                            .sum::<usize>()
+                            as f32;
+                        excession / (excession + scenario_consistent_flow)
+                    }
+                })
+                .fold(f32::INFINITY, |a, b| a.min(b)),
 
             num_scenarios: network.balances.len(),
             supply_density_min: network
@@ -159,13 +180,6 @@ impl NetworkData {
                 .map(|s| s.slack)
                 .max()
                 .unwrap_or_default(),
-            slack_excession: network
-                .solutions
-                .clone()
-                .unwrap_or_default()
-                .iter()
-                .map(|s| 0.max(s.slack - network.options.slack_fn.apply(&network.balances)[s.id]))
-                .sum(),
 
             lower_bound_max: network
                 .baseline
