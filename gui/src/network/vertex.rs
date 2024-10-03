@@ -20,7 +20,7 @@ impl Vertex {
         app_settings: &Res<AppSettings>,
     ) {
         let shape = shapes::Circle {
-            radius: 100.,
+            radius: 20.,
             ..default()
         };
 
@@ -38,7 +38,7 @@ impl Vertex {
                     },
                     ..default()
                 },
-                Stroke::new(app_settings.baseline_color, 15.),
+                Stroke::new(app_settings.baseline_color, 1.),
                 Fill::color(app_settings.background_color),
                 Vertex(vertex_number),
                 PickableBundle::default(),
@@ -55,7 +55,7 @@ impl Vertex {
                 text: Text::from_section(
                     vertex.name.clone(),
                     TextStyle {
-                        font_size: 300.0,
+                        font_size: 30.0,
                         ..default()
                     },
                 ),

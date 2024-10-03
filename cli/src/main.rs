@@ -108,6 +108,7 @@ fn main() {
             output,
             lower_bound,
             penalty_arcs,
+            overwrite_fixed,
             ..
         } => {
             if *randomize_capacities {
@@ -127,6 +128,18 @@ fn main() {
             }
             if *randomize_fixed_arcs {
                 network.randomize_fixed_arcs(random.fixed, random.fixed_consecutive);
+            }
+            if let Some(overwrite) = overwrite_fixed {
+                let other_network = Network::from_file(&options, overwrite);
+                match other_network {
+                    Ok(o_n) => {
+                        network.fixed_arcs = o_n.fixed_arcs;
+                    }
+                    Err(e) => {
+                        log::error!("{}", e);
+                        std::process::exit(1);
+                    }
+                }
             }
             if let Some(file) = output {
                 attempt!(network.serialize(file));

@@ -158,7 +158,7 @@ pub(crate) struct RandomizationArgs {
     pub(crate) fixed: usize,
 
     /// Force fixed arcs to be consecutive, i.e. share one vertex with the next fixed arc
-    #[arg(long, display_order = 401, help_heading = "Random Fixed Arcs")]
+    #[arg(long, display_order = 402, help_heading = "Random Fixed Arcs")]
     pub(crate) fixed_consecutive: bool,
 }
 
@@ -199,6 +199,10 @@ pub(crate) enum Commands {
 
         #[command(flatten)]
         random: RandomizationArgs,
+
+        /// Overwrite fixed arcs with those of a different network file.
+        #[arg(long, display_order = 403, help_heading = "Random Fixed Arcs")]
+        overwrite_fixed: Option<String>,
     },
     /// Attempt to solve the entire network via an ILP. No greedy involvement.
     Ilp {
