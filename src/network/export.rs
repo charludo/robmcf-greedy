@@ -89,7 +89,7 @@ impl NetworkData {
                 .map(|s| {
                     let excession = s.slack as f32
                         - network.options.slack_fn.apply(&network.balances)[s.id] as f32;
-                    if excession <= 0.0 {
+                    if excession <= 0.0 || s.arc_loads.sum() == 0 {
                         1.0
                     } else {
                         let scenario_consistent_flow = network
