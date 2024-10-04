@@ -108,22 +108,26 @@ impl NetworkData {
                 .balances
                 .iter()
                 .map(|b| {
-                    b.as_rows()
-                        .iter()
-                        .map(|r| r.iter().filter(|e| **e > 0).count() as f32)
-                        .sum::<f32>()
-                        / network.vertices.len() as f32
+                    b.elements().filter(|e| **e > 0).count() as f32
+                        / network
+                            .vertices
+                            .iter()
+                            .filter(|v| v.is_station)
+                            .count()
+                            .pow(2) as f32
                 })
                 .fold(f32::INFINITY, |a, b| a.min(b)),
             supply_density_avg: network
                 .balances
                 .iter()
                 .map(|b| {
-                    b.as_rows()
-                        .iter()
-                        .map(|r| r.iter().filter(|e| **e > 0).count() as f32)
-                        .sum::<f32>()
-                        / network.vertices.len() as f32
+                    b.elements().filter(|e| **e > 0).count() as f32
+                        / network
+                            .vertices
+                            .iter()
+                            .filter(|v| v.is_station)
+                            .count()
+                            .pow(2) as f32
                 })
                 .sum::<f32>()
                 / network.balances.len() as f32,
@@ -131,11 +135,13 @@ impl NetworkData {
                 .balances
                 .iter()
                 .map(|b| {
-                    b.as_rows()
-                        .iter()
-                        .map(|r| r.iter().filter(|e| **e > 0).count() as f32)
-                        .sum::<f32>()
-                        / network.vertices.len() as f32
+                    b.elements().filter(|e| **e > 0).count() as f32
+                        / network
+                            .vertices
+                            .iter()
+                            .filter(|v| v.is_station)
+                            .count()
+                            .pow(2) as f32
                 })
                 .fold(f32::NEG_INFINITY, |a, b| a.max(b)),
 
