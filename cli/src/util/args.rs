@@ -199,6 +199,10 @@ pub(crate) enum Commands {
         #[arg(long, display_order = 200, help_heading = "Random Costs")]
         randomize_costs: bool,
 
+        /// Override costs. Pass triples of "s,t,cost"
+        #[arg(long, display_order = 203, help_heading = "Random Costs", value_parser = parse_triplet, num_args=1..)]
+        override_costs: Option<Vec<(usize, usize, usize)>>,
+
         /// Enable scenario randomization
         #[arg(long, display_order = 300, help_heading = "Random Scenarios")]
         randomize_scenarios: bool,
@@ -210,9 +214,9 @@ pub(crate) enum Commands {
         #[command(flatten)]
         random: RandomizationArgs,
 
-        /// Overwrite fixed arcs with those of a different network file.
+        /// Override fixed arcs with those of a different network file.
         #[arg(long, display_order = 403, help_heading = "Random Fixed Arcs")]
-        overwrite_fixed: Option<String>,
+        override_fixed: Option<String>,
     },
     /// Attempt to solve the entire network via an ILP. No greedy involvement.
     Ilp {
@@ -278,4 +282,21 @@ pub(crate) enum Commands {
         #[arg(long, display_order = 0)]
         mark_stations: bool,
     },
+}
+
+fn parse_triplet(s: &str) -> Result<(usize, usize, usize), String> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 3 {
+        return Err("Triplet must contain exactly three values".into());
+    }
+    let first = parts[0]
+        .parse::<usize>()
+        .map_err(|_| "Failed to parse first number")?;
+    let second = parts[1]
+        .parse::<usize>()
+        .map_err(|_| "Failed to parse second number")?;
+    let third = parts[2]
+        .parse::<usize>()
+        .map_err(|_| "Failed to parse third number")?;
+    Ok((first, second, third))
 }

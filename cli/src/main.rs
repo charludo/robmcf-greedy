@@ -110,7 +110,8 @@ fn main() {
             lower_bound,
             original_flow,
             penalty_arcs,
-            overwrite_fixed,
+            override_fixed,
+            override_costs,
             ..
         } => {
             if *randomize_capacities {
@@ -131,8 +132,8 @@ fn main() {
             if *randomize_fixed_arcs {
                 network.randomize_fixed_arcs(random.fixed, random.fixed_consecutive);
             }
-            if let Some(overwrite) = overwrite_fixed {
-                let other_network = Network::from_file(&options, overwrite);
+            if let Some(r#override) = override_fixed {
+                let other_network = Network::from_file(&options, r#override);
                 match other_network {
                     Ok(o_n) => {
                         network.fixed_arcs = o_n.fixed_arcs;
@@ -141,6 +142,24 @@ fn main() {
                         log::error!("{}", e);
                         std::process::exit(1);
                     }
+                }
+            }
+            if let Some(r#override) = override_costs {
+                for &(s, t, c) in r#override.iter() {
+                    if s >= network.vertices.len() || t >= network.vertices.len() {
+                        log::error!(
+                            "{}",
+                            robmcf_greedy::SolverError::NetworkShapeError(format!(
+                                "Attempted to set cost for arc at indices ({},{}), but only {} vertices exist.",
+                                s,
+                                t,
+                                network.vertices.len()
+                            ))
+                        );
+                        return;
+                    }
+
+                    network.costs.set(s, t, c);
                 }
             }
             if let Some(file) = output {

@@ -109,6 +109,10 @@ impl Display for Network {
                 self.vertices[fixed_arc.1]
             ));
             string_repr.push(format!(
+                "              cost: {}",
+                *self.costs.get(fixed_arc.0, fixed_arc.1)
+            ));
+            string_repr.push(format!(
                 "          capacity: {}",
                 *self.capacities.get(fixed_arc.0, fixed_arc.1)
             ));
