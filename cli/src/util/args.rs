@@ -160,6 +160,17 @@ pub(crate) struct RandomizationArgs {
     /// Force fixed arcs to be consecutive, i.e. share one vertex with the next fixed arc
     #[arg(long, display_order = 402, help_heading = "Random Fixed Arcs")]
     pub(crate) fixed_consecutive: bool,
+
+    /// Fix the n [b]est improvement candidates based on the original flow.
+    #[arg(
+        long,
+        short = 'b',
+        display_order = 404,
+        help_heading = "Random Fixed Arcs",
+        requires = "original_flow",
+        conflicts_with_all = ["fixed", "lower_bound"]
+    )]
+    pub(crate) fix_best: Option<usize>,
 }
 
 #[derive(Subcommand, Debug)]

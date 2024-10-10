@@ -189,6 +189,58 @@ impl Network {
         }
     }
 
+    pub fn fix_best_candidates(&mut self, n: usize) -> Result<()> {
+        log::info!("Attempting to find and fix promising improvement candidates...");
+        let baseline = match &self.baseline {
+            Some(baseline) => baseline,
+            None => return Err(SolverError::SkippedBaselineError),
+        };
+
+        let mut candidates = Matrix::filled_with(0, self.vertices.len(), self.vertices.len());
+        for scenario in baseline {
+            for (i, j) in scenario.arc_loads.indices() {
+                let arc_load = *scenario.arc_loads.get(i, j);
+                let capacity = *self.capacities.get(i, j);
+                if capacity > 0 && arc_load == capacity {
+                    candidates.increment(i, j);
+                }
+            }
+        }
+
+        let mut heap = std::collections::BinaryHeap::with_capacity(n);
+        for (i, j) in candidates.indices() {
+            let value = candidates.get(i, j);
+            if heap.len() < n {
+                heap.push(std::cmp::Reverse((value, (i, j))));
+            } else if let Some(&std::cmp::Reverse((min_value, _))) = heap.peek() {
+                if value > min_value {
+                    heap.pop();
+                    heap.push(std::cmp::Reverse((value, (i, j))));
+                }
+            }
+        }
+        let candidates = heap
+            .into_iter()
+            .map(|std::cmp::Reverse((_, index))| index)
+            .collect::<Vec<_>>();
+        let candidate_count = candidates
+            .iter()
+            .filter(|c| *self.capacities.get(c.0, c.1) > 0)
+            .count();
+        if candidate_count < n {
+            return Err(SolverError::NoCandidatesError(candidate_count, n));
+        }
+
+        log::debug!(
+            "Found the following improvement candidates: {:?}",
+            candidates
+        );
+        self.fixed_arcs = candidates;
+
+        log::info!("Fixed the {n} most promising improvement candidate arcs.");
+        Ok(())
+    }
+
     pub fn add_penalty_arcs(&mut self) -> Result<()> {
         let indices = self
             .capacities

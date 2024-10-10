@@ -12,12 +12,14 @@ pub enum SolverError {
     FixedArcMemoryCorruptError,
     PathMatrixCorruptError,
 
+    NoCandidatesError(usize, usize),
     NoFeasibleFlowError(usize),
     NoSlackLeftError(usize),
     GurobiOpsError(grb::Error),
     GurobiSolutionError(usize),
 
     SkippedPreprocessingError,
+    SkippedBaselineError,
     SkippedSolveError,
     InvalidSolutionError(String),
 }
@@ -37,6 +39,8 @@ impl Display for SolverError {
                     "The fixed arc memory is corrupted.".to_owned(),
                 SolverError::PathMatrixCorruptError =>
                     "The shortest path matrix is corrupted.".to_owned(),
+                SolverError::NoCandidatesError(i, j) =>
+                    format!("Not enough candidates found. Found {i}/{j}."),
                 SolverError::NoFeasibleFlowError(e) =>
                     format!("No feasible flow could be found in scenario {e}."),
                 SolverError::NoSlackLeftError(e) =>
@@ -46,6 +50,9 @@ impl Display for SolverError {
                     format!("Gurobi could not find a feasible flow in scenario {e}."),
                 SolverError::SkippedPreprocessingError =>
                     "No auxiliary network found. Forgot to preprocess?".to_owned(),
+                SolverError::SkippedBaselineError =>
+                    "No baseline soution found. Forgot to calculate lower bound or original flow?"
+                        .to_owned(),
                 SolverError::SkippedSolveError =>
                     "No solution found for validation. Forgot to solve?".to_owned(),
                 SolverError::InvalidSolutionError(e) =>
