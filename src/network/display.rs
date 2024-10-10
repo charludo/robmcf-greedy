@@ -146,6 +146,14 @@ impl Display for Network {
                 "Robustness coefficient of the solution: η = {:4.3}",
                 solutions.robustness_coefficient(&self.fixed_arcs)
             ));
+
+            if let Some(baseline) = &self.baseline {
+                string_repr.push(format!(
+                    "               Benefit of the solution: κ = {}",
+                    (baseline.cost(&self.costs, &self.options.cost_fn) as i64)
+                        - (solutions.cost(&self.costs, &self.options.cost_fn) as i64),
+                ));
+            }
         }
 
         write!(f, "{}", string_repr.join("\n"))
