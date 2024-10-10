@@ -14,6 +14,7 @@ pub(super) struct NetworkData {
     consistent_flows_total: usize,
     consistent_flows_gain: Option<i64>,
 
+    robustness_coefficient_baseline: f64,
     robustness_coefficient: f64,
     benefit: i64,
 
@@ -84,6 +85,10 @@ impl NetworkData {
                 _ => None,
             },
 
+            robustness_coefficient_baseline: match &network.baseline {
+                Some(baseline) => baseline.robustness_coefficient(&network.fixed_arcs),
+                None => 0.0,
+            },
             robustness_coefficient: match &network.solutions {
                 Some(solutions) => solutions.robustness_coefficient(&network.fixed_arcs),
                 None => 0.0,
