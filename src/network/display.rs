@@ -97,6 +97,57 @@ impl Display for Network {
             ),
             None => "Solution has not been calculated yet.".to_string(),
         });
+        for fixed_arc in &self.fixed_arcs {
+            string_repr.push("".to_string());
+            string_repr.push(format!("Fixed arc ({}->{}):", fixed_arc.0, fixed_arc.1));
+            string_repr.push(format!(
+                "              from: {}",
+                self.vertices[fixed_arc.0]
+            ));
+            string_repr.push(format!(
+                "                to: {}",
+                self.vertices[fixed_arc.1]
+            ));
+            string_repr.push(format!(
+                "          capacity: {}",
+                *self.capacities.get(fixed_arc.0, fixed_arc.1)
+            ));
+
+            if let Some(baseline) = &self.baseline {
+                string_repr.push(format!(
+                    "  loads (baseline): {:?}",
+                    baseline
+                        .iter()
+                        .map(|s| *s.arc_loads.get(fixed_arc.0, fixed_arc.1))
+                        .collect::<Vec<_>>()
+                ));
+                string_repr.push(format!(
+                    "      η (baseline): {:4.3}",
+                    baseline.consistency(fixed_arc)
+                ));
+            }
+            if let Some(solutions) = &self.solutions {
+                string_repr.push(format!(
+                    "  loads (solution): {:?}",
+                    solutions
+                        .iter()
+                        .map(|s| *s.arc_loads.get(fixed_arc.0, fixed_arc.1))
+                        .collect::<Vec<_>>()
+                ));
+                string_repr.push(format!(
+                    "      η (solution): {:4.3}",
+                    solutions.consistency(fixed_arc)
+                ));
+            }
+        }
+        if let Some(solutions) = &self.solutions {
+            string_repr.push("".to_string());
+            string_repr.push(format!(
+                "Robustness coefficient of the solution: η = {:4.3}",
+                solutions.robustness_coefficient(&self.fixed_arcs)
+            ));
+        }
+
         write!(f, "{}", string_repr.join("\n"))
     }
 }

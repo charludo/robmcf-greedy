@@ -29,6 +29,10 @@ impl ScenarioSolution {
     pub(crate) fn supply_delivered(&self, supply_total: usize) -> usize {
         supply_total - self.supply_remaining.sum()
     }
+
+    pub(crate) fn normalized_arc_load(&self, fixed_arc: &(usize, usize), f_max: usize) -> f64 {
+        (*self.arc_loads.get(fixed_arc.0, fixed_arc.1)) as f64 / (f_max) as f64
+    }
 }
 
 pub trait Solution {
@@ -44,6 +48,8 @@ pub trait Solution {
         other: &[ScenarioSolution],
         fixed_arcs: &[(usize, usize)],
     ) -> Matrix<ColoredString>;
+    fn consistency(&self, fixed_arc: &(usize, usize)) -> f64;
+    fn robustness_coefficient(&self, fixed_arcs: &[(usize, usize)]) -> f64;
 }
 
 impl Solution for [ScenarioSolution] {
@@ -126,5 +132,40 @@ impl Solution for [ScenarioSolution] {
             self_flows.num_rows(),
             self_flows.num_columns(),
         )
+    }
+
+    fn consistency(&self, fixed_arc: &(usize, usize)) -> f64 {
+        let f_max = self
+            .iter()
+            .map(|solution| *solution.arc_loads.get(fixed_arc.0, fixed_arc.1))
+            .fold(0, |max, arc_load| max.max(arc_load));
+
+        if f_max == 0 {
+            return 1.0;
+        }
+
+        let f_norms = self
+            .iter()
+            .map(|s| s.normalized_arc_load(fixed_arc, f_max))
+            .collect::<Vec<_>>();
+
+        let f_mean = f_norms.iter().sum::<f64>() / f_norms.len() as f64;
+
+        let sd = (f_norms
+            .iter()
+            .map(|f_norm| (*f_norm - f_mean).powi(2))
+            .sum::<f64>()
+            / f_norms.len() as f64)
+            .sqrt();
+
+        1.0 - 2.0 * sd
+    }
+
+    fn robustness_coefficient(&self, fixed_arcs: &[(usize, usize)]) -> f64 {
+        fixed_arcs
+            .iter()
+            .map(|fixed_arc| self.consistency(fixed_arc))
+            .sum::<f64>()
+            / fixed_arcs.len() as f64
     }
 }
