@@ -11,14 +11,16 @@ pub(super) struct NetworkData {
 
     arc_density: f32,
     num_fixed_arcs: usize,
-    total_consistent_flows: usize,
-    robustness_gain: Option<i64>,
-    consistency: f32,
+    consistent_flows_total: usize,
+    consistent_flows_gain: Option<i64>,
+
+    robustness_coefficient: f64,
+    benefit: i64,
 
     num_scenarios: usize,
     supply_density_min: f32,
-    supply_density_max: f32,
     supply_density_avg: f32,
+    supply_density_max: f32,
     supply_min: usize,
     supply_avg: usize,
     supply_max: usize,
@@ -56,7 +58,7 @@ impl NetworkData {
             arc_density: network.capacities.elements().filter(|e| **e > 0).count() as f32
                 / network.vertices.len().pow(2) as f32,
             num_fixed_arcs: network.fixed_arcs.len(),
-            total_consistent_flows: match &network.solutions {
+            consistent_flows_total: match &network.solutions {
                 Some(solutions) => {
                     let mut fixed_arc_loads =
                         Matrix::filled_with(0, network.vertices.len(), network.vertices.len());
@@ -72,7 +74,7 @@ impl NetworkData {
                 }
                 _ => 0,
             },
-            robustness_gain: match (&network.baseline, &network.solutions) {
+            consistent_flows_gain: match (&network.baseline, &network.solutions) {
                 (Some(baseline), Some(solutions)) => Some(
                     solutions
                         .consistent_flows(&network.fixed_arcs)
@@ -81,27 +83,18 @@ impl NetworkData {
                 ),
                 _ => None,
             },
-            consistency: network
-                .solutions
-                .clone()
-                .unwrap_or_default()
-                .iter()
-                .map(|s| {
-                    let excession = s.slack as f32
-                        - network.options.slack_fn.apply(&network.balances)[s.id] as f32;
-                    if excession <= 0.0 || s.arc_loads.sum() == 0 {
-                        1.0
-                    } else {
-                        let scenario_consistent_flow = network
-                            .fixed_arcs
-                            .iter()
-                            .map(|&(i, j)| *s.arc_loads.get(i, j))
-                            .sum::<usize>()
-                            as f32;
-                        scenario_consistent_flow / (excession + scenario_consistent_flow)
-                    }
-                })
-                .fold(f32::INFINITY, |a, b| a.min(b)),
+
+            robustness_coefficient: match &network.solutions {
+                Some(solutions) => solutions.robustness_coefficient(&network.fixed_arcs),
+                None => 0.0,
+            },
+            benefit: match (&network.solutions, &network.baseline) {
+                (Some(solutions), Some(baseline)) => {
+                    (baseline.cost(&network.costs, &network.options.cost_fn) as i64)
+                        - (solutions.cost(&network.costs, &network.options.cost_fn) as i64)
+                }
+                _ => 0,
+            },
 
             num_scenarios: network.balances.len(),
             supply_density_min: network
