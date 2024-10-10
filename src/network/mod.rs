@@ -163,7 +163,7 @@ impl Network {
         for (s, t) in self.fixed_arcs.iter() {
             self.capacities.set(*s, *t, usize::MAX);
         }
-        match crate::ilp::gurobi_partial(self) {
+        match crate::ilp::gurobi_partial(self, true) {
             Err(e) => {
                 self.capacities = capacities_memory;
                 Err(e)
@@ -174,6 +174,18 @@ impl Network {
                 log::info!("Found a lower bound on network cost.");
                 Ok(())
             }
+        }
+    }
+
+    pub fn original_flow(&mut self) -> Result<()> {
+        log::info!("Attempting to calculate the original flow...");
+        match crate::ilp::gurobi_partial(self, false) {
+            Ok(solutions) => {
+                self.baseline = Some(solutions);
+                log::info!("Calculated the original flow.");
+                Ok(())
+            }
+            Err(e) => Err(e),
         }
     }
 
@@ -230,7 +242,7 @@ impl Network {
             RemainderSolveMethod::Greedy => log::debug!("No need to solve remaining network."),
             RemainderSolveMethod::Gurobi => {
                 log::info!("Passing the remaining unsolved network to Gurobi...");
-                let solutions = crate::ilp::gurobi_partial(self)?;
+                let solutions = crate::ilp::gurobi_partial(self, false)?;
                 self.solutions = Some(solutions);
             }
         }

@@ -20,11 +20,18 @@ pub(crate) fn gurobi_full(network: &mut Network) -> Result<Vec<ScenarioSolution>
     let mut scenario_slack = Vec::new();
 
     for (lambda, balance) in network.balances.iter().enumerate() {
-        let commodity_flows = get_vars(&mut model, network, &network.capacities, lambda)?;
+        let commodity_flows = get_vars(&mut model, network, &network.capacities, lambda, true)?;
         let arc_loads = get_arc_loads(network, &commodity_flows);
 
         add_multi_commodity_flow_constraints(&mut model, &commodity_flows, balance, lambda)?;
-        add_capacity_constraints(&mut model, network, &network.capacities, &arc_loads, lambda)?;
+        add_capacity_constraints(
+            &mut model,
+            network,
+            &network.capacities,
+            &arc_loads,
+            lambda,
+            true,
+        )?;
 
         // Total slack constraints
         let mut slack_variables = Vec::new();

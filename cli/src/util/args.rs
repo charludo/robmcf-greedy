@@ -177,6 +177,16 @@ pub(crate) enum Commands {
         #[arg(long, short = 'l', global = true, display_order = 1)]
         lower_bound: bool,
 
+        /// Calculate the original [f]low of the network. Requires Gurobi.
+        #[arg(
+            long,
+            short = 'f',
+            global = true,
+            display_order = 1,
+            conflicts_with = "lower_bound"
+        )]
+        original_flow: bool,
+
         /// Add [p]enalty arcs between vertices with non-zero supply/demand relationship
         #[arg(long, short = 'p', global = true, display_order = 1)]
         penalty_arcs: bool,
@@ -227,6 +237,16 @@ pub(crate) enum Commands {
         /// Calculate a [l]ower bound for network costs. Requires Gurobi.
         #[arg(long, short = 'l', global = true, display_order = 1)]
         lower_bound: bool,
+
+        /// Calculate the original [f]low of the network. Requires Gurobi.
+        #[arg(
+            long,
+            short = 'f',
+            global = true,
+            display_order = 1,
+            conflicts_with = "lower_bound"
+        )]
+        original_flow: bool,
 
         /// Add [p]enalty arcs between vertices with non-zero supply/demand relationship
         #[arg(long, short = 'p', global = true, display_order = 1)]

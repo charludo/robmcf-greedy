@@ -26,6 +26,7 @@ pub(super) fn get_vars(
     network: &Network,
     capacities: &Matrix<usize>,
     lambda: usize,
+    lift_capacity_constraints: bool,
 ) -> Result<Matrix<Matrix<Var>>> {
     let arc_sets = get_arc_sets(capacities, &network.costs, &network.options.delta_fn);
     let mut commodity_flows: Matrix<Matrix<Var>> = Matrix::filled_with(
@@ -39,7 +40,7 @@ pub(super) fn get_vars(
         for (u, v) in capacities.indices() {
             let upper_bound = if *arc_sets.get(s, t).get(u, v) {
                 // Fixed arcs have unlimited capacity
-                if network.fixed_arcs.contains(&(u, v)) {
+                if lift_capacity_constraints && network.fixed_arcs.contains(&(u, v)) {
                     usize::MAX
                 } else {
                     *network.capacities.get(u, v)
@@ -119,10 +120,11 @@ pub(super) fn add_capacity_constraints(
     capacities: &Matrix<usize>,
     arc_loads: &Matrix<Expr>,
     lambda: usize,
+    lift_capacity_constraints: bool,
 ) -> Result<()> {
     for (u, v) in capacities.indices() {
         // Fixed arcs have unlimited capacity
-        if network.fixed_arcs.contains(&(u, v)) {
+        if lift_capacity_constraints && network.fixed_arcs.contains(&(u, v)) {
             continue;
         }
         let _ = model.add_constr(

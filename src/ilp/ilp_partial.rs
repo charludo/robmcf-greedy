@@ -5,7 +5,10 @@ use grb::prelude::*;
 
 use crate::{network::ScenarioSolution, Matrix, Network, Result, SolverError};
 
-pub(crate) fn gurobi_partial(network: &mut Network) -> Result<Vec<ScenarioSolution>> {
+pub(crate) fn gurobi_partial(
+    network: &mut Network,
+    lift_capacity_constraints: bool,
+) -> Result<Vec<ScenarioSolution>> {
     let mut state = match &network.solutions {
         Some(solutions) => solutions.clone(),
         None => network
@@ -24,7 +27,13 @@ pub(crate) fn gurobi_partial(network: &mut Network) -> Result<Vec<ScenarioSoluti
         let mut model = Model::with_env(&format!("scenario_{lambda}"), env)?;
         let capacities = &network.capacities.subtract(&scenario.arc_loads);
 
-        let commodity_flows = get_vars(&mut model, network, capacities, lambda)?;
+        let commodity_flows = get_vars(
+            &mut model,
+            network,
+            capacities,
+            lambda,
+            lift_capacity_constraints,
+        )?;
         let arc_loads = get_arc_loads(network, &commodity_flows);
 
         add_multi_commodity_flow_constraints(
@@ -33,7 +42,14 @@ pub(crate) fn gurobi_partial(network: &mut Network) -> Result<Vec<ScenarioSoluti
             &scenario.supply_remaining,
             lambda,
         )?;
-        add_capacity_constraints(&mut model, network, capacities, &arc_loads, lambda)?;
+        add_capacity_constraints(
+            &mut model,
+            network,
+            capacities,
+            &arc_loads,
+            lambda,
+            lift_capacity_constraints,
+        )?;
 
         // Objective function
         let total_scenario_cost = network
