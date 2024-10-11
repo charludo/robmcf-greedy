@@ -167,7 +167,6 @@ pub(crate) struct RandomizationArgs {
         short = 'b',
         display_order = 404,
         help_heading = "Random Fixed Arcs",
-        requires = "original_flow",
         conflicts_with_all = ["fixed", "lower_bound"]
     )]
     pub(crate) fix_best: Option<usize>,

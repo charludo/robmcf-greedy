@@ -202,6 +202,10 @@ fn main() {
     attempt!(network.solve());
     attempt!(network.solve_remainder());
     attempt!(network.validate_solution());
+    if let Some(output) = output {
+        // Second time to also capture the baseline/solution
+        attempt!(network.serialize(output));
+    }
     if let Some(export) = args.export {
         attempt!(network.export(&export, None, None));
     };

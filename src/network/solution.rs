@@ -1,10 +1,11 @@
 use std::cmp::Ordering;
 
 use colored::{Color, ColoredString, Colorize};
+use serde::{Deserialize, Serialize};
 
 use crate::{options::CostFunction, Matrix};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct ScenarioSolution {
     pub(crate) id: usize,
     pub(crate) slack: usize,
