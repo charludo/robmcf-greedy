@@ -22,6 +22,7 @@ impl Network {
         bmax: usize,
         num_fixed_arcs: usize,
         consecutive_fixed_arcs: bool,
+        existing_only: bool,
     ) -> Self {
         let mut network = Network {
             vertices: vec![],
@@ -45,7 +46,7 @@ impl Network {
             bmin,
             bmax,
         );
-        network.randomize_fixed_arcs(num_fixed_arcs, consecutive_fixed_arcs);
+        network.randomize_fixed_arcs(num_fixed_arcs, consecutive_fixed_arcs, existing_only);
 
         network
     }
@@ -121,7 +122,12 @@ impl Network {
             .collect();
     }
 
-    pub fn randomize_fixed_arcs(&mut self, num_fixed_arcs: usize, consecutive: bool) {
+    pub fn randomize_fixed_arcs(
+        &mut self,
+        num_fixed_arcs: usize,
+        consecutive: bool,
+        existing_only: bool,
+    ) {
         log::debug!(
             "Randomizing fixed arcs: num_fixed_arcs={num_fixed_arcs}, consecutive={consecutive}."
         );
@@ -135,7 +141,7 @@ impl Network {
                 previous
             };
             let mut a1 = rng.gen_range(0..self.vertices.len());
-            while a0 == a1 {
+            while a0 == a1 || (existing_only && *self.capacities.get(a0, a1) == 0) {
                 a1 = rng.gen_range(0..self.vertices.len());
             }
             fixed_arcs.push((a0, a1));

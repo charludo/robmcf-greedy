@@ -53,6 +53,7 @@ fn main() {
             random.bmax,
             random.fixed,
             random.fixed_consecutive,
+            random.existing_only,
         )),
         Commands::Benchmark { file, .. } => Network::from_file(&options, file),
         Commands::Solve { file, .. } => Network::from_file(&options, file),
@@ -137,18 +138,29 @@ fn main() {
                 );
             }
             if *randomize_fixed_arcs {
-                network.randomize_fixed_arcs(random.fixed, random.fixed_consecutive);
+                network.randomize_fixed_arcs(
+                    random.fixed,
+                    random.fixed_consecutive,
+                    random.existing_only,
+                );
             }
             if let Some(r#override) = override_fixed {
-                let other_network = Network::from_file(&options, r#override);
-                match other_network {
-                    Ok(o_n) => {
-                        network.fixed_arcs = o_n.fixed_arcs;
+                network.fixed_arcs = vec![];
+                for &(s, t) in r#override.iter() {
+                    if s >= network.vertices.len() || t >= network.vertices.len() {
+                        log::error!(
+                            "{}",
+                            robmcf_greedy::SolverError::NetworkShapeError(format!(
+                                "Attempted to fix arc ({},{}), but only {} vertices exist.",
+                                s,
+                                t,
+                                network.vertices.len()
+                            ))
+                        );
+                        return;
                     }
-                    Err(e) => {
-                        log::error!("{}", e);
-                        std::process::exit(1);
-                    }
+
+                    network.fixed_arcs.push((s, t));
                 }
             }
             if let Some(r#override) = override_costs {

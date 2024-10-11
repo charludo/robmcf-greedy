@@ -161,11 +161,15 @@ pub(crate) struct RandomizationArgs {
     #[arg(long, display_order = 402, help_heading = "Random Fixed Arcs")]
     pub(crate) fixed_consecutive: bool,
 
+    /// Only allow improvement of existing arcs, not the creation of new ones
+    #[arg(long, display_order = 403, help_heading = "Random Fixed Arcs")]
+    pub(crate) existing_only: bool,
+
     /// Fix the n [b]est improvement candidates based on the original flow.
     #[arg(
         long,
         short = 'b',
-        display_order = 404,
+        display_order = 405,
         help_heading = "Random Fixed Arcs",
         conflicts_with_all = ["fixed", "lower_bound"]
     )]
@@ -224,9 +228,9 @@ pub(crate) enum Commands {
         #[command(flatten)]
         random: RandomizationArgs,
 
-        /// Override fixed arcs with those of a different network file.
-        #[arg(long, display_order = 403, help_heading = "Random Fixed Arcs")]
-        override_fixed: Option<String>,
+        /// Override fixed arcs. Pass tuples of "s,t"
+        #[arg(long, display_order = 404, help_heading = "Random Fixed Arcs", value_parser = parse_tuple, num_args=1..)]
+        override_fixed: Option<Vec<(usize, usize)>>,
     },
     /// Attempt to solve the entire network via an ILP. No greedy involvement.
     Ilp {
@@ -309,4 +313,18 @@ fn parse_triplet(s: &str) -> Result<(usize, usize, usize), String> {
         .parse::<usize>()
         .map_err(|_| "Failed to parse third number")?;
     Ok((first, second, third))
+}
+
+fn parse_tuple(s: &str) -> Result<(usize, usize), String> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() != 2 {
+        return Err("Tuple must contain exactly two values".into());
+    }
+    let first = parts[0]
+        .parse::<usize>()
+        .map_err(|_| "Failed to parse first number")?;
+    let second = parts[1]
+        .parse::<usize>()
+        .map_err(|_| "Failed to parse second number")?;
+    Ok((first, second))
 }
