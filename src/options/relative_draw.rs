@@ -6,6 +6,8 @@ use clap::ValueEnum;
 #[derive(ValueEnum, Debug, Clone, Display)]
 #[clap(rename_all = "kebab-case")]
 pub enum RelativeDrawFunction {
+    None,
+
     Linear,
     LinearNonNeg,
 
@@ -24,6 +26,7 @@ pub enum RelativeDrawFunction {
 impl RelativeDrawFunction {
     pub fn apply(&self, peers: &[i64], scenario: i64) -> i64 {
         match self {
+            RelativeDrawFunction::None => 0,
             RelativeDrawFunction::Linear => Self::to_power(peers, scenario, 1),
             RelativeDrawFunction::LinearNonNeg => max(0, Self::to_power(peers, scenario, 1)),
 
