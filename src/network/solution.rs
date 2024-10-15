@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::{options::CostFunction, Matrix};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct ScenarioSolution {
-    pub(crate) id: usize,
-    pub(crate) slack: usize,
-    pub(crate) supply_remaining: Matrix<usize>,
-    pub(crate) arc_loads: Matrix<usize>,
+pub struct ScenarioSolution {
+    pub id: usize,
+    pub slack: usize,
+    pub supply_remaining: Matrix<usize>,
+    pub arc_loads: Matrix<usize>,
 }
 
 impl ScenarioSolution {

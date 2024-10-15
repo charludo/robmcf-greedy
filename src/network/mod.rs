@@ -22,8 +22,8 @@ pub struct Network {
     pub balances: Vec<Matrix<usize>>,
     pub fixed_arcs: Vec<(usize, usize)>,
 
-    pub(crate) baseline: Option<Vec<ScenarioSolution>>,
-    pub(crate) solutions: Option<Vec<ScenarioSolution>>,
+    pub baseline: Option<Vec<ScenarioSolution>>,
+    pub solutions: Option<Vec<ScenarioSolution>>,
 
     #[serde(skip)]
     pub(crate) auxiliary_network: Option<AuxiliaryNetwork>,

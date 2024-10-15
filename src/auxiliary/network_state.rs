@@ -58,7 +58,7 @@ impl NetworkState {
         let mut cost = i64::MAX;
 
         for fixed_arc in &self.fixed_arcs {
-            if !token.intermediate_arc_set.get(fixed_arc.0, fixed_arc.1) {
+            if !(*token.intermediate_arc_set.get(fixed_arc.0, fixed_arc.1)) {
                 continue;
             }
 

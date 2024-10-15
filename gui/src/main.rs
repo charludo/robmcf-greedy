@@ -20,13 +20,12 @@ struct NetworkWrapper {
 }
 
 fn main() {
-    let n = Network::from_file(&Options::default(), "examples/cologne.json")
+    let n = Network::from_file(&Options::default(), "cologne_baseline_10.json")
         .expect("An error occurred while loading the network.");
     let network = NetworkWrapper {
         num_vertices: n.vertices.len(),
         n,
     };
-    println!("{}", network.n);
 
     let app_settings = AppSettings {
         background_color: Color::srgb(0.16, 0.16, 0.18),

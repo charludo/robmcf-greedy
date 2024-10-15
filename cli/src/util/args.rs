@@ -237,7 +237,7 @@ pub(crate) enum Commands {
         /// Path to a file containing a network to be used as input.
         file: String,
     },
-    /// Benchmark the solution process. Should use "No" or "Greedy" for the remainder function.
+    /// Benchmark the solution process. Should use "None" or "Greedy" for the remainder function.
     Benchmark {
         /// Path to a file containing a network to be used as input.
         file: String,

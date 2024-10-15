@@ -4,6 +4,7 @@ use bevy_mod_picking::prelude::{Listener, On, Pickable, PointerButton};
 use bevy_mod_picking::PickableBundle;
 use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
+use robmcf_greedy::Matrix;
 
 use crate::network::vertex::*;
 use crate::{shared::*, NetworkWrapper};
@@ -134,15 +135,34 @@ pub fn spawn_arcs(
     let capacities = network.n.capacities.as_rows();
     let costs = network.n.costs.as_rows();
     let cap_max = network.n.capacities.max() as f32;
+    let (flows, flow_max): (Matrix<usize>, usize) = match &network.n.baseline {
+        Some(baseline) => {
+            let mut flows =
+                Matrix::filled_with(0, network.n.vertices.len(), network.n.vertices.len());
+            for solution in baseline.iter() {
+                flows = flows.add(&solution.arc_loads);
+            }
+            (flows.clone(), *flows.elements().max().unwrap_or(&0))
+        }
+        None => (Matrix::empty(), 0),
+    };
     for (s, this_vertex) in network.n.vertices.iter().enumerate() {
         for (t, other_vertex) in network.n.vertices.iter().enumerate() {
             let capacity = capacities[s][t];
             let is_fixed = network.n.fixed_arcs.contains(&(s, t));
-            if capacity > 0 || is_fixed {
+            if capacity > 0 {
                 let (color, layer) = if is_fixed {
                     (app_settings.highlight_color, app_settings.arc_fixed_layer)
                 } else {
-                    (app_settings.baseline_color, app_settings.arc_layer)
+                    match &network.n.baseline {
+                        Some(_baseline) => {
+                            let scaled = 0.9 * (*flows.get(s, t) as f32 / flow_max as f32);
+                            let mut color = app_settings.baseline_color.to_owned();
+                            color.set_alpha(0.1 + scaled);
+                            (color, app_settings.arc_fixed_layer)
+                        }
+                        None => (app_settings.baseline_color, app_settings.arc_layer),
+                    }
                 };
                 let arc = Arc {
                     s,
