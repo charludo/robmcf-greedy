@@ -53,7 +53,7 @@ impl Vertex {
         commands.entity(entity).with_children(|parent| {
             parent.spawn((Text2dBundle {
                 text: Text::from_section(
-                    vertex.name.clone(),
+                    format!("{} ({})", vertex.name, vertex_number),
                     TextStyle {
                         font_size: 30.0,
                         ..default()

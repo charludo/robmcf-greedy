@@ -20,7 +20,7 @@ struct NetworkWrapper {
 }
 
 fn main() {
-    let n = Network::from_file(&Options::default(), "examples/aachen.json")
+    let n = Network::from_file(&Options::default(), "examples/cologne.json")
         .expect("An error occurred while loading the network.");
     let network = NetworkWrapper {
         num_vertices: n.vertices.len(),

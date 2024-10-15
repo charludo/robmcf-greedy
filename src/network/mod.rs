@@ -205,28 +205,22 @@ impl Network {
             }
         }
 
-        let mut heap = std::collections::BinaryHeap::with_capacity(n);
-        for (i, j) in candidates.indices() {
-            let value = candidates.get(i, j);
-            if heap.len() < n {
-                heap.push(std::cmp::Reverse((value, (i, j))));
-            } else if let Some(&std::cmp::Reverse((min_value, _))) = heap.peek() {
-                if value > min_value {
-                    heap.pop();
-                    heap.push(std::cmp::Reverse((value, (i, j))));
-                }
-            }
-        }
-        let candidates = heap
+        let mut values_with_indices: Vec<(usize, (usize, usize))> = candidates
+            .indices()
+            .map(|(i, j)| (*candidates.get(i, j), (i, j)))
+            .collect();
+
+        values_with_indices.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+
+        let candidates = values_with_indices
             .into_iter()
-            .map(|std::cmp::Reverse((_, index))| index)
+            .filter(|&(e, (i, j))| e > 0 && *self.capacities.get(i, j) > 0)
+            .map(|(_, index)| index)
+            .take(n)
             .collect::<Vec<_>>();
-        let candidate_count = candidates
-            .iter()
-            .filter(|c| *self.capacities.get(c.0, c.1) > 0)
-            .count();
-        if candidate_count < n {
-            return Err(SolverError::NoCandidatesError(candidate_count, n));
+
+        if candidates.len() < n {
+            return Err(SolverError::NoCandidatesError(candidates.len(), n));
         }
 
         log::debug!(
